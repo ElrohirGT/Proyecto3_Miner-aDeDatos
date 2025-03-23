@@ -177,10 +177,15 @@ original %>%
   geom_line() +
   geom_smooth(method = "loess") +
   labs(title = "Tendencia temporal de denuncias de violencia intrafamiliar",
-       x = "Fecha", y = "Número de denuncias") +
+       x = "Año", y = "Número de denuncias") +
   theme_minimal()
 ```
 
+Para observar la evolución de denuncias por mes y año se realizarón gráficos de tendencia y distribución para detallar más la información sobre denuncias en relación al tiempo.
+
+En el gráfico de distribución de denuncia por mes y año se observa el año 2013 con tuvo varias denuncias, siendo los meses abril, mayo y julio los que mayor cantidad de denuncias tuvieron, con 3500 aproximadamente. A partir de 2014, la cantidad disminuye paulatinamente, con un único pico de 3500 denuncias en el mes de marzo de 2014. Para 2020 la cantidad de denuncias disminuyó de forma abrupta del mes de febrero a abril, por temas de pandemia. Esto se podría explicar debido al cierre de algunas instituciones y toque de queda. Sin embargo como ya se ha explicado, los casos vuelven a subir a partir de 2021. 
+
+El gráfico de tendencia temporal de denuncias describe los mismos comportamientos anteriormente planteados. Indicando con la linea azul la tendencia y dirección general de cambio a tráves de los años 2013 a 2023 suavizando las fluctuaciones. Mientras que la línea negra nos explica el cambio real de las denuncias a través del tiempo.
 
 ## Relaciones demográficas
 
@@ -230,53 +235,6 @@ ggplot(original, aes(x = factor(VIC_SEXO), y = VIC_EDAD, fill = factor(VIC_SEXO)
   theme_minimal() +
   theme(legend.position = "none")
 ```
-
-
-### Relación entre víctima y agresor
-
-Se analiza el vínculo existente entre víctima y agresor.
-
-```{r}
-rel_vic_agr <- original %>%
-  group_by(VIC_REL_AGR) %>%
-  summarise(cantidad = n()) %>%
-  arrange(desc(cantidad))
-
-etiquetas_relacion <- c(
-  "1" = "Cónyuge", 
-  "2" = "Ex-cónyuge",
-  "3" = "Conviviente",
-  "4" = "Ex-conviviente",
-  "5" = "Padre/Madre",
-  "6" = "Hijo/Hija",
-  "7" = "Otro familiar",
-  "8" = "Otro",
-  "9" = "No especificado",
-  "10" = "Novio/Novia"
-)
-
-ggplot(rel_vic_agr, aes(x = reorder(factor(VIC_REL_AGR), -cantidad), y = cantidad)) +
-  geom_bar(stat = "identity", fill = "darkgreen") +
-  scale_x_discrete(labels = function(x) etiquetas_relacion[x]) +
-  labs(title = "Frecuencia de denuncias según relación víctima-agresor",
-       x = "Tipo de relación", y = "Número de denuncias") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-original %>%
-  group_by(VIC_SEXO, VIC_REL_AGR) %>%
-  summarise(cantidad = n()) %>%
-  ggplot(aes(x = factor(VIC_REL_AGR), y = cantidad, fill = factor(VIC_SEXO))) +
-  geom_bar(stat = "identity", position = "dodge") +
-  scale_x_discrete(labels = function(x) etiquetas_relacion[x]) +
-  scale_fill_manual(values = c("1" = "skyblue", "2" = "pink"),
-                   labels = c("1" = "Hombre", "2" = "Mujer")) +
-  labs(title = "Relación víctima-agresor según sexo de la víctima",
-       x = "Tipo de relación", y = "Número de denuncias", fill = "Sexo de la víctima") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-```
-
 
 ## Relaciones socioeconómicas
 
