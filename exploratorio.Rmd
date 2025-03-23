@@ -18,6 +18,7 @@ Los datos con los que trabajaremos serán los de INE, específicamente los datos
 Primero tenemos que unir todos los datos recopilados desde el 2013 hasta el 2023, para lograrlo nos topamos con varias dificultades, la primera de esta es que los datos no tienen la misma cantidad de columnas en todos los años como se puede apreciar a continuación.
 
 ```{r Carga de los datos}
+library(rio)
 library(janitor)
 data_2013 <- import("Datos/2013.sav")
 data_2014 <- import("Datos/2014.sav")
@@ -55,5 +56,57 @@ summary(original)
 
 Con esto tenemos un dataset con las siguiente variables:
 
-* ANO_EMISION: Representa el año de emisión de la denuncia.
-* MES_EMISION: Representa el mes de emisión o registro de la denuncia.
+* ANO_EMISION: Representa el año de emisión de la denuncia. (Cuantitativa Discreta)
+* MES_EMISION: Representa el mes de emisión o registro de la denuncia. (Cuantitativa Discreta)
+* DIA_EMISION: Representa el día de emisión o registro de la denuncia. (Cuantitativa Discreta)
+* DPTO_MUNICIPIO: Representa la unión del número del departamento y del municipio. (Cualitativa Nominal)
+* QUIEN_REPORTA: Persona que reporta el hecho. (Cualitativa Nominal)
+* VIC_SEXO: Sexo de la víctima. (Cualitativa Nominal)
+* VIC_EDAD: Edad de la víctima. (Cuantitativa Discreta)
+* TOTAL_HIJOS: Cantidad de hijos de la víctima. (Cuantitativa Discreta)
+* NUM_HIJ_HOM: Número de hijos hombres de la víctima. (Cuantitativa Discreta).
+* NUM_HIJ_MUJ: Número de hijas mujeres de la víctima. (Cuantitativa Discreta).
+* VIC_ALFAB: Si la víctima sabe leer o escribir. (Cualitativa nominal)
+* VIC_ESCOLARIDAD: Nivel de escolaridad de la víctima. (Cualitativa jerárquica)
+* VIC_EST_CIV: Estado civil de la víctima. (Cualitativa Nominal)
+* VIC_GRUPET: Pueblo de pertenencia de la víctima. (Cualitativa Nominal)
+* VIC_NACIONAL: Nacionalidad de la víctima. (Cualitativa Nominal)
+* VIC_TRABAJA: Condición de empleo de la víctima. (Cualitativa Nominal)
+* VIC_OCUP: Ocupación de la víctima. (Cualitativa Nominal)
+* VIC_DEDICA: A qué se dedica la víctima. (Cualitativa Nominal)
+* VIC_DISC: Discapacidad de la víctima. (Cualitativa Nominal)
+* TIPO_DISCAQ: Tipo de discapacidad de la víctima. (Cualitativa Nominal).
+* VIC_REL_AGR: Relación de la víctima con el agresor. (Cualitativa Nominal).
+* OTRAS_VICTIMAS: Total de otras víctimas. (Cuantitativa Discreta).
+* VIC_OTRAS_HOM: Otras víctimas hombres (13 años en adelante). (Cuantitativa Discreta).
+* VIC_OTRAS_MUJ: Otras víctimas mujeres (13 años en adelante). (Cuantitativa Discreta).
+* VIC_OTRAS_N_OS: Otras víctimas niños (0 a 12 años). (Cuantitativa Discreta).
+* VIC_OTRAS_N_AS: Otras víctimas niñas (0 a 12 años). (Cuantitativa Discreta).
+* HEC_DIA: Día en que sucedió el hecho. (Cuantitativa Discreta).
+* HEC_MES: Mes en que ocurrió el hecho. (Cuantitativa Discreta).
+* HEC_ANO: Año en que ocurrió el hecho. (Cuantitativa Discreta).
+* HEC_DEPOMCPIO: Departamento y municipio donde ocurrió el hecho.
+* HEC_AREA: Area geográfica de ocurrencia. (Cualitativa Nominal).
+* HEC_TIAGRE: Tipo de agresión sufrida por la víctima. (Cualitativa Nominal).
+* HEC_RECUR_DENUN: Reiteración de la denuncia (ha denunciado con anterioridad). (Cualitativa Nominal).
+* INST_DONDE_DENUNCIO: En qué institución denunció anteriormente. (Cualitativa Nominal).
+* AGR_SEXO: Sexo del agresor. (Cualitativa Nominal).
+* AGR_EDAD: Edad del agresor. (Cuantitaiva Discreta.
+* AGR_ALFAB: Sabe leer y escribir. (Cualitativa Nominal).
+* AGR_ESCOLARIDAD: Nivel de escolaridad del agresor. (Cualitativa Nominal).
+* AGR_EST_CIV: Estado civil del agresor. (Cualitativa Nominal).
+* AGR_GRUPET: Pueblo de pertenencia del agresor. (Cualitativa Nominal).
+* AGR_NACIONAL: Nacionalidad del agresor. (Cualitativa Nominal).
+* AGR_TRABAJA: Condición de empleo del agresor. (Cualitativa Nominal).
+* AGR_OCUP: Ocupación del agresor. (Cualitativa Nominal).
+* AGR_DEDICA: Dedicación del agresor (en caso no tenga ingresos). (Cualitativa Nominal).
+* OTROS_AGRESORES: Total otros agresores. (Cuantitativa Discreta).
+* AGR_OTROS_HOM: Otros agresores varones. (Cuantitativa Discreta).
+* AGR_OTROS_MUJ: Otros agresores mujeres. (Cuantitativa Discreta).
+* AGR_OTROS_N_OS: Otros agresores niños. (Cuantitativa Discreta).
+* AGR_OTROS_N_AS: Otros agresores niñas. (Cuantitativa Discreta).
+* INST_DENUN_HECHO: Nombre de la institución que registra el hecho. (Cualitativa Nominal).
+* MEDIDAS_SEGURIDAD: Medidas de seguridad otorgadas por el OJ. (Cualitativa Nominal).
+* LEY_APLICABLE: Ley que se aplicó al caso. (Cualitativa Nominal).
+
+Finalmente podemos decir que el dataset tiene 52 variables y 365,129 observaciones.

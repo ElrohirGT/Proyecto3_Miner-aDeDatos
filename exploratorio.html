@@ -528,6 +528,203 @@ en todos los años como se puede apreciar a continuación.</p>
 ## 74   numeric   numeric   numeric   numeric   numeric   numeric
 ## 75   numeric   numeric   numeric   numeric   numeric   numeric
 ## 76   numeric   numeric   numeric   numeric   numeric   numeric</code></pre>
+<p>Sin embargo se logró encontrar un patrón, todos los datasets
+realmente solo agregan variables al original del 2013, por lo tanto se
+ignoró todas las variables “extras” no incluidas dentro del dataset del
+2013 y se unieron todos los datasets:</p>
+<pre><code>##   ANO_EMISION    MES_EMISION      DIA_EMISION     DEPTO_MCPIO    
+##  Min.   :2013   Min.   : 1.000   Min.   : 1.00   Min.   : 101.0  
+##  1st Qu.:2015   1st Qu.: 4.000   1st Qu.: 8.00   1st Qu.: 309.0  
+##  Median :2018   Median : 6.000   Median :15.00   Median :1003.0  
+##  Mean   :2018   Mean   : 6.421   Mean   :15.32   Mean   : 958.3  
+##  3rd Qu.:2021   3rd Qu.: 9.000   3rd Qu.:23.00   3rd Qu.:1601.0  
+##  Max.   :2023   Max.   :12.000   Max.   :31.00   Max.   :2217.0  
+##                                                                  
+##  QUIEN_REPORTA      VIC_SEXO        VIC_EDAD      TOTAL_HIJOS   
+##  Min.   :1.000   Min.   :1.000   Min.   : 1.00   Min.   : 0.00  
+##  1st Qu.:1.000   1st Qu.:2.000   1st Qu.:24.00   1st Qu.: 1.00  
+##  Median :1.000   Median :2.000   Median :31.00   Median : 2.00  
+##  Mean   :1.126   Mean   :1.878   Mean   :34.59   Mean   :21.45  
+##  3rd Qu.:1.000   3rd Qu.:2.000   3rd Qu.:40.00   3rd Qu.: 5.00  
+##  Max.   :9.000   Max.   :2.000   Max.   :99.00   Max.   :99.00  
+##                                                  NA&#39;s   :1798   
+##   NUM_HIJ_HOM     NUM_HIJ_MUJ      VIC_ALFAB     VIC_ESCOLARIDAD
+##  Min.   : 0.00   Min.   : 0.00   Min.   :1.000   Min.   :10.00  
+##  1st Qu.: 0.00   1st Qu.: 0.00   1st Qu.:1.000   1st Qu.:23.00  
+##  Median : 1.00   Median : 1.00   Median :1.000   Median :29.00  
+##  Mean   :20.63   Mean   :20.58   Mean   :1.219   Mean   :31.89  
+##  3rd Qu.: 3.00   3rd Qu.: 3.00   3rd Qu.:1.000   3rd Qu.:44.00  
+##  Max.   :99.00   Max.   :99.00   Max.   :9.000   Max.   :99.00  
+##  NA&#39;s   :1798    NA&#39;s   :1798    NA&#39;s   :724     NA&#39;s   :724    
+##   VIC_EST_CIV      VIC_GRUPET     VIC_NACIONAL   VIC_TRABAJA   
+##  Min.   :1.000   Min.   :1.000   Min.   :1.00   Min.   :1.000  
+##  1st Qu.:2.000   1st Qu.:1.000   1st Qu.:1.00   1st Qu.:1.000  
+##  Median :2.000   Median :1.000   Median :1.00   Median :2.000  
+##  Mean   :3.575   Mean   :2.027   Mean   :1.06   Mean   :1.698  
+##  3rd Qu.:3.000   3rd Qu.:2.000   3rd Qu.:1.00   3rd Qu.:2.000  
+##  Max.   :9.000   Max.   :9.000   Max.   :9.00   Max.   :9.000  
+##  NA&#39;s   :1798                                   NA&#39;s   :724    
+##     VIC_OCUP        VIC_DEDICA        VIC_DISC      TIPO_DISCAQ    
+##  Min.   : 110     Min.   :1.00     Min.   :1.000   Min.   :1       
+##  1st Qu.:5142     1st Qu.:1.00     1st Qu.:2.000   1st Qu.:9       
+##  Median :5412     Median :1.00     Median :2.000   Median :9       
+##  Mean   :6391     Mean   :1.24     Mean   :2.301   Mean   :8       
+##  3rd Qu.:9111     3rd Qu.:1.00     3rd Qu.:2.000   3rd Qu.:9       
+##  Max.   :9999     Max.   :9.00     Max.   :9.000   Max.   :9       
+##  NA&#39;s   :240792   NA&#39;s   :125046                   NA&#39;s   :355246  
+##   VIC_REL_AGR     OTRAS_VICTIMAS  VIC_OTRAS_HOM   VIC_OTRAS_MUJ  
+##  Min.   : 1.000   Min.   : 0.00   Min.   : 0.00   Min.   : 0.00  
+##  1st Qu.: 1.000   1st Qu.: 0.00   1st Qu.: 0.00   1st Qu.: 0.00  
+##  Median : 2.000   Median : 2.00   Median : 0.00   Median : 0.00  
+##  Mean   : 3.446   Mean   :39.59   Mean   :39.13   Mean   :39.16  
+##  3rd Qu.: 4.000   3rd Qu.:99.00   3rd Qu.:99.00   3rd Qu.:99.00  
+##  Max.   :10.000   Max.   :99.00   Max.   :99.00   Max.   :99.00  
+##                                                                  
+##  VIC_OTRAS_N_OS  VIC_OTRAS_N_AS     HEC_DIA         HEC_MES      
+##  Min.   : 0.00   Min.   : 0.00   Min.   : 1.00   Min.   : 1.000  
+##  1st Qu.: 0.00   1st Qu.: 0.00   1st Qu.: 8.00   1st Qu.: 4.000  
+##  Median : 1.00   Median : 1.00   Median :15.00   Median : 6.000  
+##  Mean   :39.27   Mean   :39.25   Mean   :16.07   Mean   : 7.473  
+##  3rd Qu.:99.00   3rd Qu.:99.00   3rd Qu.:23.00   3rd Qu.: 9.000  
+##  Max.   :99.00   Max.   :99.00   Max.   :99.00   Max.   :99.000  
+##                                                                  
+##     HEC_ANO     HEC_DEPTOMCPIO    HEC_AREA      HEC_TIPAGRE   HEC_RECUR_DENUN
+##  Min.   :2000   Min.   : 101   Min.   :1.000   Min.   :1111   Min.   :1.000  
+##  1st Qu.:2015   1st Qu.: 311   1st Qu.:1.000   1st Qu.:1122   1st Qu.:2.000  
+##  Median :2018   Median :1004   Median :1.000   Median :1222   Median :2.000  
+##  Mean   :2109   Mean   :1007   Mean   :1.693   Mean   :1603   Mean   :2.151  
+##  3rd Qu.:2021   3rd Qu.:1601   3rd Qu.:2.000   3rd Qu.:2122   3rd Qu.:2.000  
+##  Max.   :9999   Max.   :9999   Max.   :9.000   Max.   :2221   Max.   :9.000  
+##                                                                              
+##  INST_DONDE_DENUNCIO    AGR_SEXO        AGR_EDAD       AGR_ALFAB    
+##  Min.   :1.0         Min.   :1.000   Min.   : 7.00   Min.   :1.000  
+##  1st Qu.:3.0         1st Qu.:1.000   1st Qu.:27.00   1st Qu.:1.000  
+##  Median :4.0         Median :1.000   Median :34.00   Median :1.000  
+##  Mean   :4.5         Mean   :1.152   Mean   :38.79   Mean   :1.319  
+##  3rd Qu.:4.0         3rd Qu.:1.000   3rd Qu.:43.00   3rd Qu.:1.000  
+##  Max.   :9.0         Max.   :2.000   Max.   :99.00   Max.   :9.000  
+##  NA&#39;s   :318364                                                     
+##  AGR_ESCOLARIDAD  AGR_EST_CIV      AGR_GURPET     AGR_NACIONAL  
+##  Min.   :10.00   Min.   :1.000   Min.   :1.000   Min.   :1.000  
+##  1st Qu.:25.00   1st Qu.:2.000   1st Qu.:1.000   1st Qu.:1.000  
+##  Median :29.00   Median :2.000   Median :1.000   Median :1.000  
+##  Mean   :34.29   Mean   :3.606   Mean   :2.073   Mean   :1.235  
+##  3rd Qu.:45.00   3rd Qu.:3.000   3rd Qu.:2.000   3rd Qu.:1.000  
+##  Max.   :99.00   Max.   :9.000   Max.   :9.000   Max.   :9.000  
+##                  NA&#39;s   :26                                     
+##   AGR_TRABAJA       AGR_OCUP       AGR_DEDICA     AGRESORES_OTROS_TOTAL
+##  Min.   :1.000   Min.   : 110    Min.   :1.00     Min.   : 0.00        
+##  1st Qu.:1.000   1st Qu.:5414    1st Qu.:1.00     1st Qu.: 0.00        
+##  Median :1.000   Median :7112    Median :1.00     Median :99.00        
+##  Mean   :1.526   Mean   :7131    Mean   :3.67     Mean   :50.93        
+##  3rd Qu.:1.000   3rd Qu.:9211    3rd Qu.:9.00     3rd Qu.:99.00        
+##  Max.   :9.000   Max.   :9999    Max.   :9.00     Max.   :99.00        
+##                  NA&#39;s   :78290   NA&#39;s   :283745                        
+##  AGR_OTROS_HOM   AGR_OTRAS_MUJ   AGR_OTROS_N_OS  AGR_OTRAS_N_AS 
+##  Min.   : 0.00   Min.   : 0.00   Min.   : 0.00   Min.   : 0.00  
+##  1st Qu.: 0.00   1st Qu.: 0.00   1st Qu.: 0.00   1st Qu.: 0.00  
+##  Median :99.00   Median :99.00   Median :99.00   Median :99.00  
+##  Mean   :50.86   Mean   :50.88   Mean   :50.84   Mean   :50.83  
+##  3rd Qu.:99.00   3rd Qu.:99.00   3rd Qu.:99.00   3rd Qu.:99.00  
+##  Max.   :99.00   Max.   :99.00   Max.   :99.00   Max.   :99.00  
+##                                                                 
+##  INST_DENUN_HECHO MEDIDAS_SEGURIDAD LEY_APLICABLE   
+##  Min.   :1.000    Min.   :1.00      Min.   :1.00    
+##  1st Qu.:3.000    1st Qu.:1.00      1st Qu.:1.00    
+##  Median :4.000    Median :1.00      Median :1.00    
+##  Mean   :3.443    Mean   :1.29      Mean   :2.02    
+##  3rd Qu.:4.000    3rd Qu.:1.00      3rd Qu.:3.00    
+##  Max.   :6.000    Max.   :9.00      Max.   :9.00    
+##                   NA&#39;s   :164609    NA&#39;s   :163181</code></pre>
+<p>Con esto tenemos un dataset con las siguiente variables:</p>
+<ul>
+<li>ANO_EMISION: Representa el año de emisión de la denuncia.
+(Cuantitativa Discreta)</li>
+<li>MES_EMISION: Representa el mes de emisión o registro de la denuncia.
+(Cuantitativa Discreta)</li>
+<li>DIA_EMISION: Representa el día de emisión o registro de la denuncia.
+(Cuantitativa Discreta)</li>
+<li>DPTO_MUNICIPIO: Representa la unión del número del departamento y
+del municipio. (Cualitativa Nominal)</li>
+<li>QUIEN_REPORTA: Persona que reporta el hecho. (Cualitativa
+Nominal)</li>
+<li>VIC_SEXO: Sexo de la víctima. (Cualitativa Nominal)</li>
+<li>VIC_EDAD: Edad de la víctima. (Cuantitativa Discreta)</li>
+<li>TOTAL_HIJOS: Cantidad de hijos de la víctima. (Cuantitativa
+Discreta)</li>
+<li>NUM_HIJ_HOM: Número de hijos hombres de la víctima. (Cuantitativa
+Discreta).</li>
+<li>NUM_HIJ_MUJ: Número de hijas mujeres de la víctima. (Cuantitativa
+Discreta).</li>
+<li>VIC_ALFAB: Si la víctima sabe leer o escribir. (Cualitativa
+nominal)</li>
+<li>VIC_ESCOLARIDAD: Nivel de escolaridad de la víctima. (Cualitativa
+jerárquica)</li>
+<li>VIC_EST_CIV: Estado civil de la víctima. (Cualitativa Nominal)</li>
+<li>VIC_GRUPET: Pueblo de pertenencia de la víctima. (Cualitativa
+Nominal)</li>
+<li>VIC_NACIONAL: Nacionalidad de la víctima. (Cualitativa Nominal)</li>
+<li>VIC_TRABAJA: Condición de empleo de la víctima. (Cualitativa
+Nominal)</li>
+<li>VIC_OCUP: Ocupación de la víctima. (Cualitativa Nominal)</li>
+<li>VIC_DEDICA: A qué se dedica la víctima. (Cualitativa Nominal)</li>
+<li>VIC_DISC: Discapacidad de la víctima. (Cualitativa Nominal)</li>
+<li>TIPO_DISCAQ: Tipo de discapacidad de la víctima. (Cualitativa
+Nominal).</li>
+<li>VIC_REL_AGR: Relación de la víctima con el agresor. (Cualitativa
+Nominal).</li>
+<li>OTRAS_VICTIMAS: Total de otras víctimas. (Cuantitativa
+Discreta).</li>
+<li>VIC_OTRAS_HOM: Otras víctimas hombres (13 años en adelante).
+(Cuantitativa Discreta).</li>
+<li>VIC_OTRAS_MUJ: Otras víctimas mujeres (13 años en adelante).
+(Cuantitativa Discreta).</li>
+<li>VIC_OTRAS_N_OS: Otras víctimas niños (0 a 12 años). (Cuantitativa
+Discreta).</li>
+<li>VIC_OTRAS_N_AS: Otras víctimas niñas (0 a 12 años). (Cuantitativa
+Discreta).</li>
+<li>HEC_DIA: Día en que sucedió el hecho. (Cuantitativa Discreta).</li>
+<li>HEC_MES: Mes en que ocurrió el hecho. (Cuantitativa Discreta).</li>
+<li>HEC_ANO: Año en que ocurrió el hecho. (Cuantitativa Discreta).</li>
+<li>HEC_DEPOMCPIO: Departamento y municipio donde ocurrió el hecho.</li>
+<li>HEC_AREA: Area geográfica de ocurrencia. (Cualitativa Nominal).</li>
+<li>HEC_TIAGRE: Tipo de agresión sufrida por la víctima. (Cualitativa
+Nominal).</li>
+<li>HEC_RECUR_DENUN: Reiteración de la denuncia (ha denunciado con
+anterioridad). (Cualitativa Nominal).</li>
+<li>INST_DONDE_DENUNCIO: En qué institución denunció anteriormente.
+(Cualitativa Nominal).</li>
+<li>AGR_SEXO: Sexo del agresor. (Cualitativa Nominal).</li>
+<li>AGR_EDAD: Edad del agresor. (Cuantitaiva Discreta.</li>
+<li>AGR_ALFAB: Sabe leer y escribir. (Cualitativa Nominal).</li>
+<li>AGR_ESCOLARIDAD: Nivel de escolaridad del agresor. (Cualitativa
+Nominal).</li>
+<li>AGR_EST_CIV: Estado civil del agresor. (Cualitativa Nominal).</li>
+<li>AGR_GRUPET: Pueblo de pertenencia del agresor. (Cualitativa
+Nominal).</li>
+<li>AGR_NACIONAL: Nacionalidad del agresor. (Cualitativa Nominal).</li>
+<li>AGR_TRABAJA: Condición de empleo del agresor. (Cualitativa
+Nominal).</li>
+<li>AGR_OCUP: Ocupación del agresor. (Cualitativa Nominal).</li>
+<li>AGR_DEDICA: Dedicación del agresor (en caso no tenga ingresos).
+(Cualitativa Nominal).</li>
+<li>OTROS_AGRESORES: Total otros agresores. (Cuantitativa
+Discreta).</li>
+<li>AGR_OTROS_HOM: Otros agresores varones. (Cuantitativa
+Discreta).</li>
+<li>AGR_OTROS_MUJ: Otros agresores mujeres. (Cuantitativa
+Discreta).</li>
+<li>AGR_OTROS_N_OS: Otros agresores niños. (Cuantitativa Discreta).</li>
+<li>AGR_OTROS_N_AS: Otros agresores niñas. (Cuantitativa Discreta).</li>
+<li>INST_DENUN_HECHO: Nombre de la institución que registra el hecho.
+(Cualitativa Nominal).</li>
+<li>MEDIDAS_SEGURIDAD: Medidas de seguridad otorgadas por el OJ.
+(Cualitativa Nominal).</li>
+<li>LEY_APLICABLE: Ley que se aplicó al caso. (Cualitativa
+Nominal).</li>
+</ul>
+<p>Finalmente podemos decir que el dataset tiene 52 variables y 365,129
+observaciones.</p>
 </div>
 </div>
 
