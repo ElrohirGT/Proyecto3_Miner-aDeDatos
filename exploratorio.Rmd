@@ -110,3 +110,54 @@ Con esto tenemos un dataset con las siguiente variables:
 * LEY_APLICABLE: Ley que se aplicó al caso. (Cualitativa Nominal).
 
 Finalmente podemos decir que el dataset tiene 52 variables y 365,129 observaciones.
+
+# Relación entre variables
+
+Para la relación entre variables se puso énfasis en la evolución temporal, diferencias por sexo, edad y tipo de violencia. Esto con el fin de detectar comportamientos recurrentes y posibles tendencias que merecen atención desde una perspectiva preventiva.
+
+## Relaciones temporales
+
+### Evolución anual de denuncias
+
+Se busca analizar cómo ha cambiado el número de denuncias por año, para determinar tendencias a lo largo del tiempo.
+### Estacionalidad
+
+Se analiza si existen patrones mensuales que indiquen repuntes en determinadas épocas del año.
+
+## Relaciones demográficas
+
+### Relación entre sexo de víctima y agresor
+
+Se examina la composición de las denuncias según el sexo de la víctima y del agresor.
+
+### Distribución por edad
+
+Se observa cómo varía la incidencia de violencia según los rangos etarios, tanto en víctimas como en agresores. Esto permite identificar grupos especialmente vulnerables o recurrentes.
+
+### Relación entre víctima y agresor
+
+Se analiza el vínculo existente entre víctima y agresor.
+
+## Relaciones socioeconómicas
+
+### Educación y violencia
+
+Se explora la relación entre el nivel educativo y la incidencia de violencia, en busca de posibles factores asociados al acceso a la educación.
+
+### Situación laboral
+
+Se analiza si la situación laboral tiene alguna relación con los casos reportados, evaluando si existen condiciones económicas que podrían influir en el riesgo o en la denuncia.
+
+### Estado civil
+
+Se estudia cómo varía la violencia según el estado civil, identificando si existen diferencias importantes entre personas casadas, solteras, divorciadas o en unión libre.
+
+## Relaciones geográficas
+
+### Distribución por departamento
+
+Se visualiza cómo se distribuyen los casos a lo largo del territorio nacional, detectando departamentos con mayor o menor prevalencia.
+
+### Diferencias urbano-rural
+
+Se contrasta la violencia reportada en zonas urbanas y rurales, permitiendo analizar cómo el entorno territorial puede influir en la incidencia o visibilización de los casos.
