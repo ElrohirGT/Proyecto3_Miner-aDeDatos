@@ -9,6 +9,16 @@ output: html_document
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
+```{r}
+library(rio)
+library(janitor)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(viridis)
+```
+
+
 # Análisis Exploratorio
 
 ## Obtención y limpieza del Dataset
@@ -18,8 +28,6 @@ Los datos con los que trabajaremos serán los de INE, específicamente los datos
 Primero tenemos que unir todos los datos recopilados desde el 2013 hasta el 2023, para lograrlo nos topamos con varias dificultades, la primera de esta es que los datos no tienen la misma cantidad de columnas en todos los años como se puede apreciar a continuación.
 
 ```{r Carga de los datos}
-library(rio)
-library(janitor)
 data_2013 <- import("Datos/2013.sav")
 data_2014 <- import("Datos/2014.sav")
 data_2015 <- import("Datos/2015.sav")
@@ -37,8 +45,6 @@ compare_df_cols(data_2013, data_2014, data_2015,data_2016,data_2017,data_2018,da
 
 Sin embargo se logró encontrar un patrón, todos los datasets realmente solo agregan variables al original del 2013, por lo tanto se ignoró todas las variables "extras" no incluidas dentro del dataset del 2013 y se unieron todos los datasets:
 ```{r Unión de los datos}
-library(rio)
-library(janitor)
 
 original <- import("Datos/2013.sav")
 
@@ -120,15 +126,82 @@ Para la relación entre variables se puso énfasis en la evolución temporal, di
 ### Evolución anual de denuncias
 
 Se busca analizar cómo ha cambiado el número de denuncias por año, para determinar tendencias a lo largo del tiempo.
+
+```{r Grafico Evolucion anual}
+ggplot(original, aes(x = factor(ANO_EMISION))) + 
+  geom_bar(fill = "steelblue") + 
+  labs(title = "Evolución anual de denuncias de violencia intrafamiliar",
+       x = "Año", y = "Número de denuncias") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
 ### Estacionalidad
 
 Se analiza si existen patrones mensuales que indiquen repuntes en determinadas épocas del año.
+
+```{r Grafico Distribucion por mes}
+ggplot(original, aes(x = factor(MES_EMISION))) + 
+  geom_bar(fill = "tomato") + 
+  labs(title = "Distribución mensual de denuncias",
+       x = "Mes", y = "Número de denuncias") +
+  theme_minimal() +
+  scale_x_discrete(labels = month.abb)
+```
+
+
+### Evolucion temporal
+
+```{r Evolucion temporal}
+temporal <- original %>%
+  group_by(ANO_EMISION, MES_EMISION) %>%
+  summarise(denuncias = n()) %>%
+  ungroup()
+
+ggplot(temporal, aes(x = factor(MES_EMISION), y = factor(ANO_EMISION), fill = denuncias)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  labs(title = "Distribución de denuncias por mes y año",
+       x = "Mes", y = "Año", fill = "Denuncias") +
+  theme_minimal() +
+  scale_x_discrete(labels = month.abb)
+
+original %>%
+  mutate(fecha = as.Date(paste(ANO_EMISION, MES_EMISION, "01", sep = "-"))) %>%
+  group_by(fecha) %>%
+  summarise(denuncias = n()) %>%
+  ggplot(aes(x = fecha, y = denuncias)) +
+  geom_line() +
+  geom_smooth(method = "loess") +
+  labs(title = "Tendencia temporal de denuncias de violencia intrafamiliar",
+       x = "Fecha", y = "Número de denuncias") +
+  theme_minimal()
+```
+
 
 ## Relaciones demográficas
 
 ### Relación entre sexo de víctima y agresor
 
 Se examina la composición de las denuncias según el sexo de la víctima y del agresor.
+
+```{r Relacion sexo VA}
+ggplot(original, aes(x = factor(VIC_SEXO), fill = factor(AGR_SEXO))) +
+  geom_bar(position = "dodge") +
+  scale_fill_manual(values = c("1" = "skyblue", "2" = "pink"),
+                   labels = c("1" = "Hombre", "2" = "Mujer")) +
+  scale_x_discrete(labels = c("1" = "Hombre", "2" = "Mujer")) +
+  labs(title = "Relación entre sexo de víctima y agresor",
+       x = "Sexo de la víctima", y = "Frecuencia", fill = "Sexo del agresor") +
+  theme_minimal()
+
+tabla_sexo <- table(original$VIC_SEXO, original$AGR_SEXO)
+print(tabla_sexo)
+prop.table(tabla_sexo, margin = 1)
+
+chisq.test(tabla_sexo)
+```
+
 
 ### Distribución por edad
 
