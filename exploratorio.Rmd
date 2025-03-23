@@ -185,7 +185,7 @@ original %>%
 
 Se examina la composición de las denuncias según el sexo de la víctima y del agresor.
 
-```{r Relacion sexo VA}
+```{r Sexo VA}
 ggplot(original, aes(x = factor(VIC_SEXO), fill = factor(AGR_SEXO))) +
   geom_bar(position = "dodge") +
   scale_fill_manual(values = c("1" = "skyblue", "2" = "pink"),
@@ -197,15 +197,38 @@ ggplot(original, aes(x = factor(VIC_SEXO), fill = factor(AGR_SEXO))) +
 
 tabla_sexo <- table(original$VIC_SEXO, original$AGR_SEXO)
 print(tabla_sexo)
-prop.table(tabla_sexo, margin = 1)
-
+prop.table(tabla_sexo, margin = 1) 
 chisq.test(tabla_sexo)
 ```
-
 
 ### Distribución por edad
 
 Se observa cómo varía la incidencia de violencia según los rangos etarios, tanto en víctimas como en agresores. Esto permite identificar grupos especialmente vulnerables o recurrentes.
+
+```{r Distribucion por edad}
+ggplot() +
+  geom_density(data = original, aes(x = VIC_EDAD, fill = "Víctima"), alpha = 0.5) +
+  geom_density(data = original, aes(x = AGR_EDAD, fill = "Agresor"), alpha = 0.5) +
+  labs(title = "Distribución de edades de víctimas y agresores",
+       x = "Edad", y = "Densidad", fill = "Rol") +
+  scale_fill_manual(values = c("Víctima" = "coral", "Agresor" = "steelblue")) +
+  theme_minimal()
+
+cor_edad <- cor.test(original$VIC_EDAD, original$AGR_EDAD, method = "spearman")
+print(cor_edad)
+
+# Boxplot de edad por sexo para víctimas
+ggplot(original, aes(x = factor(VIC_SEXO), y = VIC_EDAD, fill = factor(VIC_SEXO))) +
+  geom_boxplot() +
+  scale_x_discrete(labels = c("1" = "Hombre", "2" = "Mujer")) +
+  scale_fill_manual(values = c("1" = "skyblue", "2" = "pink"),
+                   labels = c("1" = "Hombre", "2" = "Mujer")) +
+  labs(title = "Distribución de edad de víctimas por sexo",
+       x = "Sexo", y = "Edad") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
 
 ### Relación entre víctima y agresor
 
