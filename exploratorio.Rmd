@@ -136,6 +136,8 @@ ggplot(original, aes(x = factor(ANO_EMISION))) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
+Con el gráfico de la evolución anual de denuncias, se puede observa que los casos venían decayendo de 2013 a 2018, con un repunte en 2019. Siendo el año 2020 con menos denuncias de violencia intrafamiliar, el año de la pandemia. Sin embargo, a partir del 2020, la cantidad dde denuncias vuelve a subir nuevamente hasta el punto máximo siendo el año 2023 con casi 35000 denuncias.
+
 ### Estacionalidad
 
 Se analiza si existen patrones mensuales que indiquen repuntes en determinadas épocas del año.
@@ -149,6 +151,7 @@ ggplot(original, aes(x = factor(MES_EMISION))) +
   scale_x_discrete(labels = month.abb)
 ```
 
+Con base al gráfico de distribución mensual de denuncias, de los años 2013 a 2023, se observa que la cantidad de denuncias suele tener una cantidad similar por mes, con una pequeña diferencia para los meses que contarón con mayor cantidad de denuncias siendo marzo, abril, mayo, julio y agosto donde la cantidad asciende a más de 30000 denuncias. Mientras que febrero, octubre noviembre y diciembre los meses que tiene menos de 30000 denuncias. Finalmente con meses como enero y septiembre que tienen una cantidad bastante similar a 30000 denuncias.
 
 ### Evolucion temporal
 
@@ -217,7 +220,6 @@ ggplot() +
 cor_edad <- cor.test(original$VIC_EDAD, original$AGR_EDAD, method = "spearman")
 print(cor_edad)
 
-# Boxplot de edad por sexo para víctimas
 ggplot(original, aes(x = factor(VIC_SEXO), y = VIC_EDAD, fill = factor(VIC_SEXO))) +
   geom_boxplot() +
   scale_x_discrete(labels = c("1" = "Hombre", "2" = "Mujer")) +
@@ -233,6 +235,48 @@ ggplot(original, aes(x = factor(VIC_SEXO), y = VIC_EDAD, fill = factor(VIC_SEXO)
 ### Relación entre víctima y agresor
 
 Se analiza el vínculo existente entre víctima y agresor.
+
+```{r}
+rel_vic_agr <- original %>%
+  group_by(VIC_REL_AGR) %>%
+  summarise(cantidad = n()) %>%
+  arrange(desc(cantidad))
+
+etiquetas_relacion <- c(
+  "1" = "Cónyuge", 
+  "2" = "Ex-cónyuge",
+  "3" = "Conviviente",
+  "4" = "Ex-conviviente",
+  "5" = "Padre/Madre",
+  "6" = "Hijo/Hija",
+  "7" = "Otro familiar",
+  "8" = "Otro",
+  "9" = "No especificado",
+  "10" = "Novio/Novia"
+)
+
+ggplot(rel_vic_agr, aes(x = reorder(factor(VIC_REL_AGR), -cantidad), y = cantidad)) +
+  geom_bar(stat = "identity", fill = "darkgreen") +
+  scale_x_discrete(labels = function(x) etiquetas_relacion[x]) +
+  labs(title = "Frecuencia de denuncias según relación víctima-agresor",
+       x = "Tipo de relación", y = "Número de denuncias") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+original %>%
+  group_by(VIC_SEXO, VIC_REL_AGR) %>%
+  summarise(cantidad = n()) %>%
+  ggplot(aes(x = factor(VIC_REL_AGR), y = cantidad, fill = factor(VIC_SEXO))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_discrete(labels = function(x) etiquetas_relacion[x]) +
+  scale_fill_manual(values = c("1" = "skyblue", "2" = "pink"),
+                   labels = c("1" = "Hombre", "2" = "Mujer")) +
+  labs(title = "Relación víctima-agresor según sexo de la víctima",
+       x = "Tipo de relación", y = "Número de denuncias", fill = "Sexo de la víctima") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
 
 ## Relaciones socioeconómicas
 
