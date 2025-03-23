@@ -22,7 +22,6 @@ library(rio)
 library(janitor)
 
 original <- import("Datos/2013.sav")
-summary(original)
 
 addToDataset <- function(year) {
   data <- import(paste("Datos/", year, ".sav", sep=""))
@@ -32,8 +31,8 @@ addToDataset <- function(year) {
 
 for (year in 2014:2023) {
   addToDataset(year)
-  summary(original)
 }
+summary(original)
 
 #data_2013 <- import("Datos/2013.sav")
 #data_2014 <- import("Datos/2014.sav")
