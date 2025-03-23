@@ -21,18 +21,32 @@ Primero tenemos que unir todos los datos recopilados desde el 2013 hasta el 2023
 library(rio)
 library(janitor)
 
-data_2013 <- import("Datos/2013.sav")
-data_2014 <- import("Datos/2014.sav")
-data_2015 <- import("Datos/2015.sav")
-data_2016 <- import("Datos/2016.sav")
-data_2017 <- import("Datos/2017.sav")
-data_2018 <- import("Datos/2018.sav")
-data_2019 <- import("Datos/2019.sav")
-data_2020 <- import("Datos/2020.sav")
-data_2021 <- import("Datos/2021.sav")
-data_2022 <- import("Datos/2022.sav")
-data_2023 <- import("Datos/2023.sav")
+original <- import("Datos/2013.sav")
+summary(original)
 
-compare_df_cols(data_2013, data_2014, data_2015,data_2016,data_2017,data_2018,data_2019,data_2020,data_2021,data_2022,data_2023)
+addToDataset <- function(year) {
+  data <- import(paste("Datos/", year, ".sav", sep=""))
+  reduced <- data[,colnames(original)]
+  original <<- rbind(original, reduced)
+}
+
+for (year in 2014:2023) {
+  addToDataset(year)
+  summary(original)
+}
+
+#data_2013 <- import("Datos/2013.sav")
+#data_2014 <- import("Datos/2014.sav")
+#data_2015 <- import("Datos/2015.sav")
+#data_2016 <- import("Datos/2016.sav")
+#data_2017 <- import("Datos/2017.sav")
+#data_2018 <- import("Datos/2018.sav")
+#data_2019 <- import("Datos/2019.sav")
+#data_2020 <- import("Datos/2020.sav")
+#data_2021 <- import("Datos/2021.sav")
+#data_2022 <- import("Datos/2022.sav")
+#data_2023 <- import("Datos/2023.sav")
+
+#compare_df_cols(data_2013, data_2014, data_2015,data_2016,data_2017,data_2018,data_2019,data_2020,data_2021,data_2022,data_2023)
 ```
 
