@@ -159,7 +159,6 @@ categoricas <- original[, c(
 )]
 
 summary(numericas)
-categoricas
 
 ```
 En base al resumen se puede observar un compartamiento extraño en muchas de las variable, por ejemplo se tiene que el máximo año registrado para un denuncia es 9999, o que hay denuncias en las que la vícitima tiene 99 hijos o hijas, algo imposible. La presencia de este tipo de datos se debe a que el INE usa 9, 99 o 9999 para idncar que no se tiee información sobre la variable, por esta razón para este análisis eliminaremos todas las filas que cumplan con algunas de estas condiciones. Otro aspecto a notar es que en las columnas referentes al número de hijos se tienen bastantes valores NA's, estos serán reemplzados por la media. 
@@ -232,17 +231,12 @@ columnas_a_analizar <- c(
   "INST_DENUN_HECHO", "MEDIDAS_SEGURIDAD", "LEY_APLICABLE"
 )
 
-mapped_test <- categoricas %>%
-  mutate(across(all_of(c(
-  "DEPTO_MCPIO", "QUIEN_REPORTA"
-)), 
-                ~ map_codes(., cur_column())))
 
-mapped_test
+
 
 for (col in columnas_a_analizar) {
   # Asegurarse de que la columna sea de tipo factor
-  categoricas[[col]] <- as.factor(mapped_test[[col]])
+  categoricas[[col]] <- as.factor(categoricas[[col]])
 
   # Contar la frecuencia de cada categoría y obtener las 25 más comunes
   top_25_categories <- categoricas %>%
