@@ -16,6 +16,7 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(viridis)
+library(scales)
 ```
 
 
@@ -347,10 +348,69 @@ ggplot(tabla_trabajo, aes(x = VIC_TRABAJA, y = porcentaje, fill = AGR_TRABAJA)) 
             vjust = -0.5, size = 3.5)
 ```
 
+Con baes a la tabla y el gráfico, podemos notar que para una víctima que trabaja, el 24.6% de los casos involucran a un agresor que trabaja, mientras que el 9.5% involucran a un agresor que no trabaja. Mientras que en los caos donde la víctima no trabaja: El 54.8% de los casos involucran a un agresor que trabaja, mientras que el 11.1% involucran a un agresor que no trabaja.
+
+Estos datos revelan que la mayoría de los casos de violencia, independientemente de la situación laboral de la víctima, involucran a agresores que trabajan. Sin embargo, la proporción es significativamente mayor cuando la víctima no trabaja, con un 54.8%. Esto sugiere que la situación laboral de la víctima podría ser un factor relevante en la dinámica de la violencia, con una mayor vulnerabilidad cuando la víctima no tiene un empleo.
 
 ### Estado civil
 
 Se estudia cómo varía la violencia según el estado civil, identificando si existen diferencias importantes entre personas casadas, solteras, divorciadas o en unión libre.
+
+```{r Relacion estado civil}
+estado_civil <- original %>%
+  filter(VIC_EST_CIV %in% 1:5, AGR_EST_CIV %in% 1:5) %>%
+  mutate(
+    VIC_EST_CIV = factor(VIC_EST_CIV, levels = 1:5,
+                         labels = c("Soltero/a", "Casado/a", "Unido/a", 
+                                    "Viudo/a", "Otro")),
+    AGR_EST_CIV = factor(AGR_EST_CIV, levels = 1:5,
+                         labels = c("Soltero/a", "Casado/a", "Unido/a", 
+                                    "Viudo/a", "Otro"))
+  )
+
+max_valor_vic <- max(table(estado_civil$VIC_EST_CIV))
+
+ggplot(estado_civil, aes(x = VIC_EST_CIV, fill = VIC_EST_CIV)) +
+  geom_bar() +
+  labs(title = "Distribución de víctimas por estado civil",
+       x = "Estado civil", y = "Cantidad") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none") +
+  scale_y_continuous(
+    labels = label_comma(), 
+    breaks = seq(0, ceiling(max_valor_vic/10000)*10000, 10000),
+    limits = c(0, ceiling(max_valor_vic/10000)*10000),
+    expand = c(0, 0)  # Elimina el espacio adicional
+  )
+estado_civil <- original %>%
+  filter(VIC_EST_CIV %in% 1:5, AGR_EST_CIV %in% 1:5) %>%
+  mutate(
+    VIC_EST_CIV = factor(VIC_EST_CIV, levels = 1:5,
+                         labels = c("Soltero/a", "Casado/a", "Unido/a", 
+                                    "Viudo/a", "Otro")),
+    AGR_EST_CIV = factor(AGR_EST_CIV, levels = 1:5,
+                         labels = c("Soltero/a", "Casado/a", "Unido/a", 
+                                    "Viudo/a", "Otro"))
+  )
+
+max_valor <- max(table(estado_civil$AGR_EST_CIV))
+
+ggplot(estado_civil, aes(x = AGR_EST_CIV, fill = AGR_EST_CIV)) +
+  geom_bar() +
+  labs(title = "Distribución de agresores por estado civil",
+       x = "Estado civil", y = "Cantidad") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none") +
+  scale_y_continuous(
+    labels = label_comma(), 
+    breaks = seq(0, ceiling(max_valor/10000)*10000, 10000),
+    limits = c(0, ceiling(max_valor/10000)*10000)
+  )
+
+```
+
 
 ## Relaciones geográficas
 
