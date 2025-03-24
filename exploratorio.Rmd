@@ -348,7 +348,7 @@ ggplot(tabla_trabajo, aes(x = VIC_TRABAJA, y = porcentaje, fill = AGR_TRABAJA)) 
             vjust = -0.5, size = 3.5)
 ```
 
-Con baes a la tabla y el gráfico, podemos notar que para una víctima que trabaja, el 24.6% de los casos involucran a un agresor que trabaja, mientras que el 9.5% involucran a un agresor que no trabaja. Mientras que en los caos donde la víctima no trabaja: El 54.8% de los casos involucran a un agresor que trabaja, mientras que el 11.1% involucran a un agresor que no trabaja.
+Con base a la tabla y el gráfico, podemos notar que para una víctima que trabaja, el 24.6% de los casos involucran a un agresor que trabaja, mientras que el 9.5% involucran a un agresor que no trabaja. Mientras que en los caos donde la víctima no trabaja: El 54.8% de los casos involucran a un agresor que trabaja, mientras que el 11.1% involucran a un agresor que no trabaja.
 
 Estos datos revelan que la mayoría de los casos de violencia, independientemente de la situación laboral de la víctima, involucran a agresores que trabajan. Sin embargo, la proporción es significativamente mayor cuando la víctima no trabaja, con un 54.8%. Esto sugiere que la situación laboral de la víctima podría ser un factor relevante en la dinámica de la violencia, con una mayor vulnerabilidad cuando la víctima no tiene un empleo.
 
@@ -394,6 +394,12 @@ estado_civil <- original %>%
                                     "Viudo/a", "Otro"))
   )
 
+```
+
+Este gráfico de barras muestra la distribución de la cantidad de víctimas de violencia según su estado civil. Se observa que la mayoría de las víctimas se encuentran en relaciones de pareja estables, ya sea matrimonio o unión libre, con una cantidad significativamente mayor en el estado civil Casado/a. La cantidad de víctimas solteras es notablemente menor, y la incidencia en viudos/as  y en la categoría "Otro" es muy baja. Por lo que las relaciones de pareja pueden ser un factor de riesgo importante en la violencia, y que la violencia es más prevalente en contextos de relaciones a largo plazo.
+
+```{r agresores estado civil}
+
 max_valor <- max(table(estado_civil$AGR_EST_CIV))
 
 ggplot(estado_civil, aes(x = AGR_EST_CIV, fill = AGR_EST_CIV)) +
@@ -411,6 +417,7 @@ ggplot(estado_civil, aes(x = AGR_EST_CIV, fill = AGR_EST_CIV)) +
 
 ```
 
+Este gráfico de barras muestra la distribución de la cantidad de agresores según su estado civil. Similar al gráfico de víctimas, se observa que la mayoría de los agresores se encuentran en relaciones de pareja estables. De igual manera, la cantidad de agresores solteros es notablemente menor, y la incidencia en viudos/as y en la categoría "Otro" es muy baja. 
 
 ## Relaciones geográficas
 
@@ -418,6 +425,96 @@ ggplot(estado_civil, aes(x = AGR_EST_CIV, fill = AGR_EST_CIV)) +
 
 Se visualiza cómo se distribuyen los casos a lo largo del territorio nacional, detectando departamentos con mayor o menor prevalencia.
 
+```{r Distribucion por departamento}
+deptos_mapping <- data.frame(
+  departamento = 1:22,
+  nombre_depto = c("Guatemala", "El Progreso", "Sacatepéquez", "Chimaltenango", 
+                   "Escuintla", "Santa Rosa", "Sololá", "Totonicapán", 
+                   "Quetzaltenango", "Suchitepéquez", "Retalhuleu", "San Marcos",
+                   "Huehuetenango", "Quiché", "Baja Verapaz", "Alta Verapaz", 
+                   "Petén", "Izabal", "Zacapa", "Chiquimula", "Jalapa", "Jutiapa")
+)
+
+original <- original %>%
+  mutate(departamento = floor(DEPTO_MCPIO / 100))
+
+original <- original %>%
+  left_join(deptos_mapping, by = "departamento")
+
+top_deptos <- original %>%
+  count(nombre_depto) %>%
+  arrange(desc(n)) %>%
+  top_n(10)
+
+ggplot(top_deptos, aes(x = reorder(nombre_depto, n), y = n)) +
+  geom_bar(stat = "identity", fill = "darkgreen") +
+  labs(title = "Top 10 departamentos con mayor número de denuncias",
+       x = "Departamento", y = "Número de denuncias") +
+  theme_minimal() +
+  coord_flip()
+```
+
+Se observa que el departamento de Guatemala tiene el número más alto de denuncias, seguido de Alta Verapaz y Suchitepéquez. Los departamentos de San Marcos, Chimaltenango y Quetzaltenango tienen un número similar de denuncias, mientras que Retalhuleu, Sacatepéquez, Jutiapa y Santa Rosa tienen el menor número de denuncias entre los 10 departamentos principales.
+
 ### Diferencias urbano-rural
 
 Se contrasta la violencia reportada en zonas urbanas y rurales, permitiendo analizar cómo el entorno territorial puede influir en la incidencia o visibilización de los casos.
+
+```{r Urbano-Rural}
+area_plot <- original %>%
+  filter(HEC_AREA %in% c(1, 2)) %>%
+  mutate(area = factor(HEC_AREA, levels = c(1, 2), 
+                     labels = c("Urbana", "Rural")))
+
+prop.table(table(area_plot$area)) * 100
+
+geo_tiempo <- original %>%
+  filter(HEC_AREA %in% c(1, 2) & ANO_EMISION >= 2013 & ANO_EMISION <= 2023) %>%
+  mutate(area = factor(HEC_AREA, levels = c(1, 2), 
+                     labels = c("Urbana", "Rural"))) %>%
+  group_by(ANO_EMISION, area) %>%
+  summarise(denuncias = n(), .groups = 'drop')
+
+ggplot(geo_tiempo, aes(x = factor(ANO_EMISION), y = denuncias, fill = area, group = area)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_manual(values = c("Urbana" = "darkblue", "Rural" = "darkgreen")) +
+  labs(title = "Evolución de denuncias por área y año",
+       x = "Año", y = "Número de denuncias", fill = "Área") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+agresion_mapping <- data.frame(
+  HEC_TIPAGRE = c(1222, 2122, 2212, 2221, 1122, 1212, 1221, 2112, 2121, 2211, 
+                 1112, 1121, 2111, 1211, 1111),
+  tipo_agresion = c("Física", "Psicológica", "Sexual", "Patrimonial", 
+                   "Física - psicológica", "Física - sexual", "Física - patrimonial", 
+                   "Psicológica - sexual", "Psicológica - patrimonial", 
+                   "Sexual - patrimonial", "Física - psicológica - sexual", 
+                   "Física - psicológica - patrimonial", 
+                   "Psicológica - sexual - patrimonial", 
+                   "Física - sexual - patrimonial", 
+                   "Física - psicológica - sexual - patrimonial")
+)
+
+heatmap_geo_agresor <- original %>%
+  filter(departamento > 0 & departamento < 23) %>%
+  left_join(agresion_mapping, by = "HEC_TIPAGRE") %>%
+  group_by(departamento, tipo_agresion) %>%
+  summarise(denuncias = n(), .groups = 'drop')
+
+heatmap_geo_agresor <- heatmap_geo_agresor %>%
+  left_join(deptos_mapping, by = "departamento")
+
+ggplot(heatmap_geo_agresor, 
+      aes(x = nombre_depto, y = tipo_agresion, fill = denuncias)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  labs(title = "Distribución de tipos de agresiones por departamento",
+       x = "Departamento", y = "Tipo de agresión", fill = "Denuncias") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+Para el gráfico de denuncias por área y año se observa que tanto en áreas urbanas como rurales, el número de denuncias ha fluctuado a lo largo de los años, con un incremento notable a partir de 2020. En general, las áreas urbanas tienden a tener un mayor número de denuncias en comparación con las áreas rurales, aunque la diferencia no es constante. Este gráfico permite visualizar la tendencia temporal de las denuncias y comparar la incidencia entre áreas urbanas y rurales.
+
+En la distribución de tipos de agresiones, se observa que algunos departamentos, como Guatemala, muestran una mayor concentración de denuncias en varios tipos de agresión, mientras que otros departamentos tienen una incidencia menor. Los tipos de agresión más comunes parecen ser "Psicológica" y "Física". Este gráfico permite identificar patrones geográficos en los tipos de agresión, resaltando las áreas con mayor incidencia y los tipos de agresión predominantes en cada departamento.
