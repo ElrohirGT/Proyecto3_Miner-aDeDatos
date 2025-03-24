@@ -17,6 +17,8 @@ library(dplyr)
 library(tidyr)
 library(viridis)
 library(scales)
+library(readxl)
+library(purrr)
 ```
 
 
@@ -118,6 +120,159 @@ Con esto tenemos un dataset con las siguiente variables:
 
 Finalmente podemos decir que el dataset tiene 52 variables y 365,129 observaciones.
 
+# Exploración de las variables
+
+## Resumen de las variables cuantitativas
+
+```{r}
+
+
+# Variables cualitativas nominales
+variables_cualitativas_nominales <- c(
+  "DPTO_MUNICIPIO", "QUIEN_REPORTA", "VIC_SEXO", 
+  "VIC_ALFAB", "VIC_EST_CIV", "VIC_GRUPET", 
+  "VIC_NACIONAL", "VIC_TRABAJA", "VIC_OCUP", 
+  "VIC_DEDICA", "VIC_DISC", "TIPO_DISCAQ", 
+  "VIC_REL_AGR", "HEC_DEPOMCPIO", "HEC_AREA", 
+  "HEC_TIAGRE", "HEC_RECUR_DENUN", "INST_DONDE_DENUNCIO", 
+  "AGR_SEXO", "AGR_ALFAB", "AGR_ESCOLARIDAD", 
+  "AGR_EST_CIV", "AGR_GRUPET", "AGR_NACIONAL", 
+  "AGR_TRABAJA", "AGR_OCUP", "AGR_DEDICA", 
+  "INST_DENUN_HECHO", "MEDIDAS_SEGURIDAD", "LEY_APLICABLE"
+)
+
+
+
+numericas <- original[, c("ANO_EMISION", "MES_EMISION", "DIA_EMISION", "VIC_EDAD", "TOTAL_HIJOS", "NUM_HIJ_HOM", "NUM_HIJ_MUJ", "OTRAS_VICTIMAS", "VIC_OTRAS_HOM", "VIC_OTRAS_MUJ", "VIC_OTRAS_N_OS", "VIC_OTRAS_N_AS", "HEC_DIA", "HEC_MES", "HEC_ANO", "AGR_EDAD", "AGR_OTROS_HOM", "AGR_OTRAS_MUJ", "AGR_OTROS_N_OS", 
+  "AGR_OTRAS_N_AS")]
+
+categoricas <- original[, c(
+  "DEPTO_MCPIO", "QUIEN_REPORTA", "VIC_SEXO", 
+  "VIC_ALFAB", "VIC_ESCOLARIDAD", "VIC_EST_CIV", "VIC_GRUPET", 
+  "VIC_NACIONAL", "VIC_TRABAJA", "VIC_OCUP", 
+  "VIC_DEDICA", "VIC_DISC", "TIPO_DISCAQ", "VIC_REL_AGR", "HEC_DEPTOMCPIO", "HEC_AREA", 
+  "HEC_TIPAGRE", "HEC_RECUR_DENUN", "INST_DONDE_DENUNCIO", 
+  "AGR_SEXO", "AGR_ALFAB", "AGR_ESCOLARIDAD", 
+  "AGR_EST_CIV", "AGR_GURPET", "AGR_NACIONAL", 
+  "AGR_TRABAJA", "AGR_OCUP", "AGR_DEDICA", 
+  "INST_DENUN_HECHO", "MEDIDAS_SEGURIDAD", "LEY_APLICABLE"
+)]
+
+summary(numericas)
+categoricas
+
+```
+En base al resumen se puede observar un compartamiento extraño en muchas de las variable, por ejemplo se tiene que el máximo año registrado para un denuncia es 9999, o que hay denuncias en las que la vícitima tiene 99 hijos o hijas, algo imposible. La presencia de este tipo de datos se debe a que el INE usa 9, 99 o 9999 para idncar que no se tiee información sobre la variable, por esta razón para este análisis eliminaremos todas las filas que cumplan con algunas de estas condiciones. Otro aspecto a notar es que en las columnas referentes al número de hijos se tienen bastantes valores NA's, estos serán reemplzados por la media. 
+
+```{r}
+
+#Sabemos en cuáles columnas tienen valores como 99 o 9999, filtramos para aquellas que no contengan este tipo de dato
+
+columnas_a_filtrar <- c("VIC_EDAD", "TOTAL_HIJOS", "NUM_HIJ_HOM", "NUM_HIJ_MUJ", 
+                        "OTRAS_VICTIMAS", "VIC_OTRAS_HOM", "VIC_OTRAS_MUJ", 
+                        "VIC_OTRAS_N_OS", "VIC_OTRAS_N_AS", "HEC_DIA", "HEC_MES", 
+                        "HEC_ANO", "AGR_EDAD", "AGR_OTROS_HOM", "AGR_OTRAS_MUJ", 
+                        "AGR_OTROS_N_OS", "AGR_OTRAS_N_AS")
+
+columnas_a_modificar <- c("VIC_EDAD", "TOTAL_HIJOS", "NUM_HIJ_HOM", "NUM_HIJ_MUJ", 
+                          "OTRAS_VICTIMAS", "VIC_OTRAS_HOM", "VIC_OTRAS_MUJ", 
+                          "VIC_OTRAS_N_OS", "VIC_OTRAS_N_AS", "HEC_DIA", "HEC_MES", 
+                          "HEC_ANO", "AGR_EDAD", "AGR_OTROS_HOM", "AGR_OTRAS_MUJ", 
+                          "AGR_OTROS_N_OS", "AGR_OTRAS_N_AS")
+
+# Función para reemplazar valores 99, 9999 o NA con la mediana de la columna
+reemplazar_mediana <- function(x) {
+  mediana <- median(x[!x %in% c(99, 9999) & !is.na(x)], na.rm = TRUE)  # Calcula la mediana sin 99, 9999 y NA
+  x <- ifelse(x %in% c(99, 9999) | is.na(x), mediana, x)  # Reemplaza los valores
+  return(x)
+}
+
+# Aplicar la función a todas las columnas de interés
+analisis_num <- numericas %>%
+  mutate(across(all_of(columnas_a_modificar), reemplazar_mediana))
+
+summary(analisis_num)
+
+```
+## Datos atípicos en las variables
+
+```{r}
+
+
+columnas_a_graficar <- c("VIC_EDAD", "TOTAL_HIJOS", "NUM_HIJ_HOM", "NUM_HIJ_MUJ", 
+                          "OTRAS_VICTIMAS", "VIC_OTRAS_HOM", "VIC_OTRAS_MUJ", 
+                          "VIC_OTRAS_N_OS", "VIC_OTRAS_N_AS", "HEC_DIA", "HEC_MES", 
+                          "HEC_ANO", "AGR_EDAD", "AGR_OTROS_HOM", "AGR_OTRAS_MUJ", 
+                          "AGR_OTROS_N_OS", "AGR_OTRAS_N_AS")
+
+
+for (col in columnas_a_graficar) {
+  boxplot(analisis_num[[col]], main = paste("Boxplot de", col), 
+          ylab = "Valor", col = "skyblue", border = "blue")
+}
+```
+En base a lo observado, se pued observar que hay pocas variables que presentan datos atípicos, este tipo de datos se da en las variables de número de hijos, pues parece ser que en la gran mayoría de denuncias la víctima tiene 1 o 2 hijos, es raro ver familias con más de 3 hijos. Otro aspecto importante es la edad de l vícitma, en la mayoría de casos está ente los 20 y 40 años, sin embargo hay una víctima de 98 años y unas cuántas mayores de 60 años. 
+## Resumen de las variables cualitativas
+
+Ahora nos centraremos en las variables cualitativas, muchas de estas utilizan una escala, por eso utilizan datos numéricos. Al igual que en las vairbales cuantitativas estas usan 9, 99 o 9999 en algunas variables para indicar que no se tienen datos, por lo que esas variables simplemente las motreremos como "Ignorado".
+
+
+```{r}
+
+# Lista de columnas a analizar
+columnas_a_analizar <- c(
+  "DEPTO_MCPIO", "QUIEN_REPORTA", "VIC_SEXO", 
+  "VIC_ALFAB", "VIC_ESCOLARIDAD", "VIC_EST_CIV", "VIC_GRUPET", 
+  "VIC_NACIONAL", "VIC_TRABAJA", "VIC_OCUP", 
+  "VIC_DEDICA", "VIC_DISC", "TIPO_DISCAQ", "VIC_REL_AGR", 
+  "HEC_DEPTOMCPIO", "HEC_AREA", "HEC_TIPAGRE", "HEC_RECUR_DENUN", 
+  "INST_DONDE_DENUNCIO", "AGR_SEXO", "AGR_ALFAB", "AGR_ESCOLARIDAD", 
+  "AGR_EST_CIV", "AGR_GURPET", "AGR_NACIONAL", 
+  "AGR_TRABAJA", "AGR_OCUP", "AGR_DEDICA", 
+  "INST_DENUN_HECHO", "MEDIDAS_SEGURIDAD", "LEY_APLICABLE"
+)
+
+mapped_test <- categoricas %>%
+  mutate(across(all_of(c(
+  "DEPTO_MCPIO", "QUIEN_REPORTA"
+)), 
+                ~ map_codes(., cur_column())))
+
+mapped_test
+
+for (col in columnas_a_analizar) {
+  # Asegurarse de que la columna sea de tipo factor
+  categoricas[[col]] <- as.factor(mapped_test[[col]])
+
+  # Contar la frecuencia de cada categoría y obtener las 25 más comunes
+  top_25_categories <- categoricas %>%
+    count(!!sym(col)) %>%  # Contar las frecuencias de cada categoría
+    arrange(desc(n)) %>%   # Ordenar por frecuencia de mayor a menor
+    head(25)               # Limitar a las 25 categorías más frecuentes
+  
+  # Filtrar las filas en el dataframe original para que contengan solo las 25 categorías más frecuentes
+  categoricas_filtered <- categoricas %>%
+    filter(!!sym(col) %in% top_25_categories[[col]])
+
+  # Crear el gráfico de barras para la frecuencia de las 25 categorías más comunes
+  p <- ggplot(categoricas_filtered, aes_string(x = col)) +
+    geom_bar(fill = "steelblue", color = "black") +
+    theme_minimal() +
+    labs(
+      title = paste("Frecuencia de las 25 categorías más comunes de", col),
+      x = col,
+      y = "Frecuencia"
+    ) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotar las etiquetas del eje X
+  
+  
+  # Mostrar el gráfico
+  print(p)
+}
+
+
+```
+La mayoría de las denuncias se hacen en el municipio de Guatemala, un gran porcentae de las víctimas son mujeres, mientras que gran parte de los agresores registrados son hombres. Gran parte de los agresores y las víctimas no tienen ningún grado de escolaridad. 
 # Relación entre variables
 
 Para la relación entre variables se puso énfasis en la evolución temporal, diferencias por sexo, edad y tipo de violencia. Esto con el fin de detectar comportamientos recurrentes y posibles tendencias que merecen atención desde una perspectiva preventiva.
