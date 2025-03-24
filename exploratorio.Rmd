@@ -209,6 +209,10 @@ prop.table(tabla_sexo, margin = 1)
 chisq.test(tabla_sexo)
 ```
 
+Se puede observar que existe una frecuencia significativamente mayor de agresores hombres en comparación con agresores mujeres,
+
+Además, se observa que en la tabla que refuerza los datos vistos en el gráfico, que el grupo de víctimas son mujeres en un 92% de los casos. Por medio del Chi-cuadrado, que además tiene un valor de 2.2e-16 el cual es extremadamente pequeño, se determinó que la relación entre el sexo de la víctima y el agresor es altamente significativa. Lo cual nos induce a que la distribución observada sea muy poco probable que ocurra por casualidad.
+
 ### Distribución por edad
 
 Se observa cómo varía la incidencia de violencia según los rangos etarios, tanto en víctimas como en agresores. Esto permite identificar grupos especialmente vulnerables o recurrentes.
@@ -224,7 +228,11 @@ ggplot() +
 
 cor_edad <- cor.test(original$VIC_EDAD, original$AGR_EDAD, method = "spearman")
 print(cor_edad)
+```
 
+En el gráfico de la distribución de edades de víctimas y agresores, donde los datos de los agresores tienen un color azul, y el de las víctimas un color naranja; Se observa que tanto víctimas como agresores tienden a concentrarse en edades más jóvenes, de entre 13 a 38 años, con un pico alrededor de los 25 años. También se puede observar que a medida que la edad aumenta, la densidad disminuye gradualmente hasta llegar a los agresores de edades cercanas a los 100 años.
+
+```{r} 
 ggplot(original, aes(x = factor(VIC_SEXO), y = VIC_EDAD, fill = factor(VIC_SEXO))) +
   geom_boxplot() +
   scale_x_discrete(labels = c("1" = "Hombre", "2" = "Mujer")) +
@@ -236,15 +244,109 @@ ggplot(original, aes(x = factor(VIC_SEXO), y = VIC_EDAD, fill = factor(VIC_SEXO)
   theme(legend.position = "none")
 ```
 
+Con el Boxplot de Distribución de edad de víctima por sexo, nos indican que la mediana de las víctimas mujeres es ligeramente inferior a la de los hombres, siendo de aproximadamente 30 años mediana de edad en mujeres. Además, el IQR de las mujeres es más estrecho que el de los hombres, lo que quiere decir que las edades de las víctimas mujeres se concentran más alrededor de la mediana. En el caso de las víctimas hombres, la mediana se concentra alrededor de los 38 años. 
+
+Para los valores atípicos, se observa que en el caso de las víctimas mujeres existe una mayor variabilidad en las edades extremas del grupo.
+
 ## Relaciones socioeconómicas
 
 ### Educación y violencia
 
 Se explora la relación entre el nivel educativo y la incidencia de violencia, en busca de posibles factores asociados al acceso a la educación.
 
+```{r Escolaridad}
+# Se van a mapear los valores con base al diccionario del INE, y 
+# se generalizó un poco para que el diagrama fuera entendible
+escolaridad_nivel <- function(x) {
+  case_when(
+    x == 10 ~ "Ninguno",
+    x >= 21 & x <= 26 ~ "Primaria (1º a 6º)",
+    x == 29 ~ "Primaria (ignorado)",
+    x >= 31 & x <= 33 ~ "Básico (1º a 3º)",
+    x == 39 ~ "Básico (ignorado)",
+    x >= 44 & x <= 46 ~ "Diversificado (4º a 6º)",
+    x == 49 ~ "Diversificado (ignorado)",
+    x >= 51 & x <= 57 ~ "Universitario (1º a 7º)",
+    x == 59 ~ "Universitario (ignorado)",
+    TRUE ~ NA_character_
+  )
+}
+
+original_clean <- original %>%
+  filter(VIC_ESCOLARIDAD < 90 & AGR_ESCOLARIDAD < 90) %>%
+  mutate(
+    VIC_ESCOLARIDAD_NIVEL = escolaridad_nivel(VIC_ESCOLARIDAD),
+    AGR_ESCOLARIDAD_NIVEL = escolaridad_nivel(AGR_ESCOLARIDAD)
+  ) %>%
+  filter(!is.na(VIC_ESCOLARIDAD_NIVEL) & !is.na(AGR_ESCOLARIDAD_NIVEL))
+
+df_long <- original_clean %>%
+  select(VIC_ESCOLARIDAD_NIVEL, AGR_ESCOLARIDAD_NIVEL) %>%
+  rename(Víctima = VIC_ESCOLARIDAD_NIVEL, Agresor = AGR_ESCOLARIDAD_NIVEL) %>%
+  pivot_longer(cols = c(Víctima, Agresor), names_to = "Rol", values_to = "Escolaridad")
+
+niveles_ordenados <- c(
+  "Ninguno",
+  "Primaria (1º a 6º)",
+  "Primaria (ignorado)",
+  "Básico (1º a 3º)",
+  "Básico (ignorado)",
+  "Diversificado (4º a 6º)",
+  "Diversificado (ignorado)",
+  "Universitario (1º a 7º)",
+  "Universitario (ignorado)"
+)
+
+df_long$Escolaridad <- factor(df_long$Escolaridad, levels = niveles_ordenados)
+
+ggplot(df_long, aes(x = Escolaridad, fill = Rol)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Distribución del nivel educativo de víctimas y agresores",
+       x = "Nivel educativo", y = "Cantidad",
+       fill = "Rol") +
+  scale_fill_manual(values = c("Víctima" = "coral", "Agresor" = "steelblue")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+Para la distribución de nivel de víctimas y agresores, se encontró que:
+
+- Ninguno: La cantidad de víctimas y agresores sin ningún nivel educativo es relativamente baja, aunque ligeramente mayor en agresores.
+- Primaria: Este nivel educativo muestra la mayor cantidad de agresores y víctimas, lo que sugiere una alta concentración de casos en personas con educación primaria completa.
+- Básico: La cantidad de casos en este nivel educativo es notablemente menor en comparación con la primaria completa.
+- Diversificado: La cantidad de casos vuelve a aumentar en este nivel educativo, aunque no tanto como en primaria completa.
+- Universitario: La cantidad de casos disminuye considerablemente en este nivel educativo, lo que sugiere que la incidencia es menor en personas con educación universitaria.
+
 ### Situación laboral
 
 Se analiza si la situación laboral tiene alguna relación con los casos reportados, evaluando si existen condiciones económicas que podrían influir en el riesgo o en la denuncia.
+
+```{r Situacion laboral}
+situacion_laboral <- original %>%
+  filter(VIC_TRABAJA %in% c(1, 2), AGR_TRABAJA %in% c(1, 2)) %>%
+  mutate(VIC_TRABAJA = factor(VIC_TRABAJA, levels = c(1, 2), 
+                              labels = c("Víctima trabaja", "Víctima No trabaja")),
+         AGR_TRABAJA = factor(AGR_TRABAJA, levels = c(1, 2), 
+                              labels = c("Agresor trabaja", "Agresor No trabaja")))
+
+tabla_trabajo <- situacion_laboral %>%
+  count(VIC_TRABAJA, AGR_TRABAJA) %>%
+  mutate(porcentaje = round(100 * n / sum(n), 1))
+
+print(tabla_trabajo)
+
+ggplot(tabla_trabajo, aes(x = VIC_TRABAJA, y = porcentaje, fill = AGR_TRABAJA)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Relación entre situación laboral de víctima y agresor",
+       x = "Situación laboral de la víctima",
+       y = "Porcentaje",
+       fill = "Agresor trabaja") +
+  theme_minimal() +
+  geom_text(aes(label = paste0(porcentaje, "%")), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 3.5)
+```
+
 
 ### Estado civil
 
