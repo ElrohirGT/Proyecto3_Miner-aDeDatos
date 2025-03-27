@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
-```{r}
+```{r Cargar librerias}
 library(rio)
 library(janitor)
 library(ggplot2)
@@ -19,6 +19,7 @@ library(viridis)
 library(scales)
 library(readxl)
 library(purrr)
+library(plotly)
 ```
 
 
@@ -761,3 +762,141 @@ ggplot(heatmap_geo_agresor,
 Para el gráfico de denuncias por área y año se observa que tanto en áreas urbanas como rurales, el número de denuncias ha fluctuado a lo largo de los años, con un incremento notable a partir de 2020. En general, las áreas urbanas tienden a tener un mayor número de denuncias en comparación con las áreas rurales, aunque la diferencia no es constante. Este gráfico permite visualizar la tendencia temporal de las denuncias y comparar la incidencia entre áreas urbanas y rurales.
 
 En la distribución de tipos de agresiones, se observa que algunos departamentos, como Guatemala, muestran una mayor concentración de denuncias en varios tipos de agresión, mientras que otros departamentos tienen una incidencia menor. Los tipos de agresión más comunes parecen ser "Psicológica" y "Física". Este gráfico permite identificar patrones geográficos en los tipos de agresión, resaltando las áreas con mayor incidencia y los tipos de agresión predominantes en cada departamento.
+
+## Tipos de violencia según escolaridad
+
+```{r Tipo de violencia según escolaridad}
+agresion_mapping <- data.frame(
+  HEC_TIPAGRE = c(1222, 2122, 2212, 2221, 1122, 1212, 1221, 2112, 2121, 2211, 
+                 1112, 1121, 2111, 1211, 1111),
+  tipo_agresion = c("Física", "Psicológica", "Sexual", "Patrimonial", 
+                   "Física - psicológica", "Física - sexual", "Física - patrimonial", 
+                   "Psicológica - sexual", "Psicológica - patrimonial", 
+                   "Sexual - patrimonial", "Física - psicológica - sexual", 
+                   "Física - psicológica - patrimonial", 
+                   "Psicológica - sexual - patrimonial", 
+                   "Física - sexual - patrimonial", 
+                   "Física - psicológica - sexual - patrimonial")
+)
+
+# Se van a mapear los valores con base al diccionario del INE, y 
+# se generalizó un poco para que el diagrama fuera entendible
+escolaridad_nivel <- function(x) {
+  case_when(
+    x == 10 ~ "Ninguno",
+    x >= 21 & x <= 26 ~ "Primaria (1º a 6º)",
+    x == 29 ~ "Primaria (ignorado)",
+    x >= 31 & x <= 33 ~ "Básico (1º a 3º)",
+    x == 39 ~ "Básico (ignorado)",
+    x >= 44 & x <= 46 ~ "Diversificado (4º a 6º)",
+    x == 49 ~ "Diversificado (ignorado)",
+    x >= 51 & x <= 57 ~ "Universitario (1º a 7º)",
+    x == 59 ~ "Universitario (ignorado)",
+    TRUE ~ NA_character_
+  )
+}
+
+escol_vic <- original %>%
+  mutate(
+    VIC_ESCOLARIDAD_NIVEL = escolaridad_nivel(VIC_ESCOLARIDAD)
+  ) %>%
+  filter(!is.na(VIC_ESCOLARIDAD_NIVEL) & !is.na(HEC_TIPAGRE)) %>%
+  left_join(agresion_mapping, by = "HEC_TIPAGRE") %>%
+  group_by(tipo_agresion, VIC_ESCOLARIDAD_NIVEL) %>%
+  summarise(escol = n(), .groups = 'drop')
+
+niveles_ordenados <- c(
+  "Ninguno",
+  "Primaria (1º a 6º)",
+  "Primaria (ignorado)",
+  "Básico (1º a 3º)",
+  "Básico (ignorado)",
+  "Diversificado (4º a 6º)",
+  "Diversificado (ignorado)",
+  "Universitario (1º a 7º)",
+  "Universitario (ignorado)"
+)
+
+escol_vic$VIC_ESCOLARIDAD_NIVEL <- factor(escol_vic$VIC_ESCOLARIDAD_NIVEL, levels=niveles_ordenados)
+
+ggplot(escol_vic, 
+      aes(x = VIC_ESCOLARIDAD_NIVEL, y = tipo_agresion, fill = escol)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  labs(title = "Distribución de tipos de agresiones por escolaridad de víctima",
+       x = "Escolaridad Víctima", y = "Tipo de agresión", fill = "Denuncias") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+Como se puede ver por la gráfica, la mayoría de tipos de agresión que comete un agresor son de tipo Psicológico o Físico - Psicológico, ambos cometidos por agresores con un nivel de escolaridad de primaria.
+
+Por otro lado, si eres una víctima, el tipo de agresión más común que recibirás es Psicológica/Física - Psicológica sin importar tu tipo de escolaridad, aunque la cantidad baja drásticamente si tienes un nivel de universitario o mayor.
+
+## Tipo de Violencia según Edades
+
+```{r Tipo de violencia según edad de víctima/agresor}
+agresion_mapping <- data.frame(
+  HEC_TIPAGRE = c(1222, 2122, 2212, 2221, 1122, 1212, 1221, 2112, 2121, 2211, 
+                 1112, 1121, 2111, 1211, 1111),
+  tipo_agresion = c("Física", "Psicológica", "Sexual", "Patrimonial", 
+                   "Física - psicológica", "Física - sexual", "Física - patrimonial", 
+                   "Psicológica - sexual", "Psicológica - patrimonial", 
+                   "Sexual - patrimonial", "Física - psicológica - sexual", 
+                   "Física - psicológica - patrimonial", 
+                   "Psicológica - sexual - patrimonial", 
+                   "Física - sexual - patrimonial", 
+                   "Física - psicológica - sexual - patrimonial")
+)
+
+escol_agresor <- original %>%
+  filter(!is.na(AGR_EDAD) & !is.na(HEC_TIPAGRE)) %>%
+  left_join(agresion_mapping, by = "HEC_TIPAGRE") %>%
+  group_by(tipo_agresion, AGR_EDAD) %>%
+  summarise(escol = n(), .groups = 'drop')
+
+escol_vic <- original %>%
+  filter(!is.na(VIC_EDAD) & !is.na(HEC_TIPAGRE)) %>%
+  left_join(agresion_mapping, by = "HEC_TIPAGRE") %>%
+  group_by(tipo_agresion, VIC_EDAD) %>%
+  summarise(escol = n(), .groups = 'drop')
+
+ggplot(escol_agresor, 
+      aes(x = AGR_EDAD, y = tipo_agresion, fill = escol)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  labs(title = "Distribución de tipos de agresiones por edad del agresor",
+       x = "Edad Agresor", y = "Tipo de agresión", fill = "Denuncias") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+ggplot(escol_vic, 
+      aes(x = VIC_EDAD, y = tipo_agresion, fill = escol)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  labs(title = "Distribución de tipos de agresiones por edad de víctima",
+       x = "Edad Víctima", y = "Tipo de agresión", fill = "Denuncias") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+Como se puede ver por los mapas de calor, la mayoría de las víctimas que reportan casos de violencia intrafamiliar son personas cercanas a 25 años y reportan una agresión física-psicológica o solamente psicológica. Esto nos lleva a una pregunta interesante, cómo se relaciona la edad del agresor respecto a la edad de la víctima?
+
+## Relación entre la edad del agresor y la edad de la víctima
+```{r Relación entre la edad del agresor y la víctima}
+
+edad_agr_vic <- original %>%
+  filter(!is.na(VIC_EDAD) & !is.na(AGR_EDAD) & ANO_EMISION > 2022) %>%
+  filter(!is.na(ANO_EMISION) & !is.na(MES_EMISION) & !is.na(DIA_EMISION)) %>%
+  mutate(
+    fecha = as.Date(paste(ANO_EMISION, "-", MES_EMISION, "-", DIA_EMISION, sep="")),
+    vicRatioAgr = VIC_EDAD / AGR_EDAD
+  ) %>%
+  select(fecha, vicRatioAgr)
+
+ggplotly(ggplot(edad_agr_vic, aes(x=vicRatioAgr)) +
+  geom_histogram(color = "steelblue", fill = "steelblue") +
+  labs(title = "Distribución del Ratio entre Edad Víctima / Edad Agresor", y = "Edad Víctima / Edad Agresor") +
+  theme_minimal())
+```
+
