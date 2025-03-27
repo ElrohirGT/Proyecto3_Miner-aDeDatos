@@ -49,26 +49,113 @@ compare_df_cols(data_2013, data_2014, data_2015,data_2016,data_2017,data_2018,da
 Sin embargo se logró encontrar un patrón, todos los datasets realmente solo agregan variables al original del 2013, por lo tanto se ignoró todas las variables "extras" no incluidas dentro del dataset del 2013 y se unieron todos los datasets:
 ```{r Unión de los datos}
 
-original <- import("Datos/2013.sav")
+original <- import("Datos/2023.sav")
 
 addToDataset <- function(year) {
   data <- import(paste("Datos/", year, ".sav", sep=""))
-  reduced <- data[,colnames(original)]
-  original <<- rbind(original, reduced)
+  # reduced <- data[,colnames(original)]
+  original <<- bind_rows(original, data)
 }
 
-for (year in 2014:2023) {
+ifValueConvertToNA <- function(column, values) {
+  # print(paste("Removing ignored values from:", column))
+  original[,c(column)] <<- ifelse(original[,c(column)] %in% values, NA, original[,c(column)])
+}
+
+for (year in 2013:2022) {
   addToDataset(year)
 }
+
+ignoredValues <- c(9, 99, 999, 9999)
+affectedColumns <- c(
+  "VIC_EDAD",
+  "TOTAL_HIJOS",
+  "NUM_HIJ_HOM",
+  "NUM_HIJ_MUJ",
+  "VIC_ALFAB",
+  "VIC_ESCOLARIDAD",
+  "VIC_EST_CIV",
+  "VIC_GRUPET",
+  "VIC_NACIONAL",
+  "VIC_TRABAJA",
+  "VIC_OCUP",
+  "VIC_DEDICA",
+  "VIC_DISC",
+  "TIPO_DISCAQ",
+  "OTRAS_VICTIMAS",
+  "VIC_OTRAS_HOM",
+  "VIC_OTRAS_MUJ",
+  "VIC_OTRAS_N_OS",
+  "VIC_OTRAS_N_AS",
+  "HEC_DIA",
+  "HEC_MES",
+  "HEC_ANO",
+  "HEC_DEPTO",
+  "HEC_DEPTOMCPIO",
+  "HEC_AREA",
+  "HEC_RECUR_DENUN",
+  "INST_DONDE_DENUNCIO",
+  "AGR_EDAD",
+  "AGR_ALFAB",
+  "AGR_ESCOLARIDAD",
+  "AGR_EST_CIV",
+  "AGR_GURPET",
+  "AGR_NACIONAL",
+  "AGR_TRABAJA",
+  "AGR_OCUP",
+  "AGR_DEDICA",
+  "AGRESORES_OTROS_TOTAL",
+  "AGR_OTROS_HOM",
+  "AGR_OTRAS_MUJ",
+  "AGR_OTROS_N_OS",
+  "AGR_OTRAS_N_AS",
+  "CONDUCENTE",
+  "LEY_APLICABLE",
+  "ARTICULOVIF1",
+  "ARTICULOVIF2",
+  "ARTICULOVIF3",
+  "ARTICULOVIF4",
+  "ARTICULOVCM1",
+  "ARTICULOVCM2",
+  "ARTICULOVCM3",
+  "ARTICULOVCM4",
+  "ARTICULOCODPEN1",
+  "ARTICULOCODPEN2",
+  "ARTICULOCODPEN3",
+  "ARTICULOCODPEN4",
+  "ARTICULOTRAS1",
+  "ARTICULOTRAS2",
+  "ARTICULOTRAS3",
+  "ARTICULOTRAS4",
+  "MEDIDAS_SEGURIDAD",
+  "ORGANISMO_REMITE",
+  "QUIEN_REPORTA",
+  "ORGANISMO_JURISDICCIONAL"
+)
+
+
+for (col in affectedColumns) {
+	ifValueConvertToNA(col, ignoredValues)
+}
+
+# Ignorar también TIPO_MEDIDA, se ignora con valor z
+ifValueConvertToNA("TIPO_MEDIDA", c("z"))
+
+# Por alguna razón se crea esta columna, todos sus valores son NAN así que la borramos.
+original$`filter_$` <- NULL
+
 summary(original)
 ```
 
-Con esto tenemos un dataset con las siguiente variables:
+Con esto podemos decir que el dataset tiene `r ncol(original)` variables y `r nrow(original)` observaciones.
+
+Finalmente tenemos un dataset con las siguiente variables:
 
 * ANO_EMISION: Representa el año de emisión de la denuncia. (Cuantitativa Discreta)
 * MES_EMISION: Representa el mes de emisión o registro de la denuncia. (Cuantitativa Discreta)
 * DIA_EMISION: Representa el día de emisión o registro de la denuncia. (Cuantitativa Discreta)
-* DPTO_MUNICIPIO: Representa la unión del número del departamento y del municipio. (Cualitativa Nominal)
+* HEC_DEPTO: Departamento de Registro (Cualitativa Nominal).
+* DEPTO_MUNICIPIO: Representa la unión del número del departamento y del municipio. (Cualitativa Nominal).
 * QUIEN_REPORTA: Persona que reporta el hecho. (Cualitativa Nominal)
 * VIC_SEXO: Sexo de la víctima. (Cualitativa Nominal)
 * VIC_EDAD: Edad de la víctima. (Cuantitativa Discreta)
@@ -94,6 +181,7 @@ Con esto tenemos un dataset con las siguiente variables:
 * HEC_DIA: Día en que sucedió el hecho. (Cuantitativa Discreta).
 * HEC_MES: Mes en que ocurrió el hecho. (Cuantitativa Discreta).
 * HEC_ANO: Año en que ocurrió el hecho. (Cuantitativa Discreta).
+* HEC_DEPTO: Departamento donde ocurrió el hecho. (Cualitativa Discreta).
 * HEC_DEPOMCPIO: Departamento y municipio donde ocurrió el hecho.
 * HEC_AREA: Area geográfica de ocurrencia. (Cualitativa Nominal).
 * HEC_TIAGRE: Tipo de agresión sufrida por la víctima. (Cualitativa Nominal).
@@ -115,10 +203,16 @@ Con esto tenemos un dataset con las siguiente variables:
 * AGR_OTROS_N_OS: Otros agresores niños. (Cuantitativa Discreta).
 * AGR_OTROS_N_AS: Otros agresores niñas. (Cuantitativa Discreta).
 * INST_DENUN_HECHO: Nombre de la institución que registra el hecho. (Cualitativa Nominal).
+* ORGANISMO_JURISDICCIONAL: Órgano jurisdiccional que recibe la denuncia. (Cualitativa Nominal).
+* CONDUCENTE: Se certificó lo conducente. (Cualitativa Nominal).
 * MEDIDAS_SEGURIDAD: Medidas de seguridad otorgadas por el OJ. (Cualitativa Nominal).
 * LEY_APLICABLE: Ley que se aplicó al caso. (Cualitativa Nominal).
-
-Finalmente podemos decir que el dataset tiene 52 variables y 365,129 observaciones.
+* ARTICULOVIF: Artículo de la Ley VIF (violencia intrafamiliar).(Cualitativa Nominal)
+* ARTICULOVCM: Artículo de la Ley VCM (violencia contra la mujer).(Cualitativa Nominal)
+* ARTICULOCODPEN: Artículo del Código Penal.(Cualitativa Nominal)
+* ARTICULOTRAS: Artículo de otras leyes.(Cualitativa Nominal)
+* TIPO_MEDIDA: Tipo medida de seguridad aplicada. (Cualitativa Nominal)
+* ORGANISMO_REMITE: Órgano jurisdiccional a dónde se remitió. (Cualitativa Nominal)
 
 # Exploración de las variables
 
