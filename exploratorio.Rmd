@@ -1010,11 +1010,15 @@ Como se puede ver, a pesar de que la diferencia entre la edad de la víctima y s
 
 # Problemática
 
+Guatemala es un país en vías de desarrollo que todavía tiene amplias zonas rurales dentro de su territorio, esto sumado a otras desventajas como la alta centralización del estado y la dificultad de acceso de algunas zonas dificultan obtener datos sobre toda la población del país.
 
+El INE en Guatemala brinda estadísticas de temas variados que permiten analizar parte de la situación actual del país y cómo se ha encontrado de forma histórica. Nosotros decidimos enforcarnos específicamente en el conjunto de datos de violencia intrafamiliar de los años 2013-2023, tomando en cuenta la realidad de Guatemala sabemos que es altamente probable que estos datos tengan el "cesgo del superviviente", que en nuestro caso sería solamente las personas que reportan datos son las que conocemos, no sabemos nada sobre las personas que se quedan en silencio o simplemente sufren de abuso pero no pueden reportarlo.
 
-## Situación
+Intentaremos tomar en cuenta esto durante nuestro análisis, pero en realidad poco podemos hacer cuando nuestra única fuente de _verdad_ se encuentra cesgada de esta forma.
 
 ## Problema Científico
+
+¿Por qué la mayoría de denuncias dentro del dataset son de violencia física/psicológica?
 
 ## Objetivos
 
