@@ -886,7 +886,7 @@ Como se puede ver por los mapas de calor, la mayoría de las víctimas que repor
 ```{r Relación entre la edad del agresor y la víctima}
 
 edad_agr_vic <- original %>%
-  filter(!is.na(VIC_EDAD) & !is.na(AGR_EDAD) & ANO_EMISION > 2022) %>%
+  filter(!is.na(VIC_EDAD) & !is.na(AGR_EDAD)) %>%
   filter(!is.na(ANO_EMISION) & !is.na(MES_EMISION) & !is.na(DIA_EMISION)) %>%
   mutate(
     fecha = as.Date(paste(ANO_EMISION, "-", MES_EMISION, "-", DIA_EMISION, sep="")),
@@ -899,4 +899,31 @@ ggplotly(ggplot(edad_agr_vic, aes(x=vicRatioAgr)) +
   labs(title = "Distribución del Ratio entre Edad Víctima / Edad Agresor", y = "Edad Víctima / Edad Agresor") +
   theme_minimal())
 ```
+
+Como podemos ver por el gráfico, la mayoría de denuncias tienen víctimas y agresores que son mas o menos de la misma edad. La gráfica está cesgada a la derecha pero esto no significa que los datos estén cesgados para la derecha! Esto se debe a que el rango de valores de $(0,1)$ encapsula el mismo dominio de situaciones Víctim/Agresor que el rango de valores de $(1, \infty)$.
+
+Para evaluar si realmente está cesgada o no el histograma vamos a contar cuántos casos existen en donde el ratio es mayor a 1.05 vs cuantos casos hay en donde el ratio es menor a 0.95.
+```{r Cesgo en Ratio VIC_EDAD/AGR_EDAD}
+edad_agr_vic <- original %>%
+  filter(!is.na(VIC_EDAD) & !is.na(AGR_EDAD)) %>%
+  mutate(
+    vicRatioAgr = VIC_EDAD / AGR_EDAD
+  )
+
+bet0_1 <- edad_agr_vic %>%
+  filter(vicRatioAgr <= 0.95)
+bet1_inf <- edad_agr_vic %>%
+  filter(vicRatioAgr >= 1.05)
+
+df <- data.frame(RANGE = c("(0,1)", "(1, infinito)"), COUNT=c(nrow(bet0_1), nrow(bet1_inf))) 
+
+ggplotly(ggplot(df, aes(x=RANGE)) +
+  geom_col(aes(fill = RANGE, y=COUNT, stat = "identity")) +
+  labs(title = "Distribución del Ratio entre Edad Víctima / Edad Agresor", y = "Edad Víctima / Edad Agresor") +
+  theme_minimal())
+```
+
+Como se puede apreciar por el gráfico, hay muchos más casos en donde la víctima era menor al agresor, aunque el histograma anterior nos hubiera podido haber hecho pensar lo contrario.
+
+Aún así resulta interesante los casos en dónde la víctima es mucho mayor/mucho menor al agresor. Vamos a explorar estos más adelante.
 
