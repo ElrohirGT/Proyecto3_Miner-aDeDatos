@@ -690,12 +690,12 @@ top_deptos <- original %>%
   arrange(desc(n)) %>%
   top_n(10)
 
-ggplot(top_deptos, aes(x = reorder(nombre_depto, n), y = n)) +
+ggplotly(ggplot(top_deptos, aes(x = reorder(nombre_depto, n), y = n)) +
   geom_bar(stat = "identity", fill = "darkgreen") +
   labs(title = "Top 10 departamentos con mayor número de denuncias",
        x = "Departamento", y = "Número de denuncias") +
   theme_minimal() +
-  coord_flip()
+  coord_flip())
 ```
 
 Se observa que el departamento de Guatemala tiene el número más alto de denuncias, seguido de Alta Verapaz y Suchitepéquez. Los departamentos de San Marcos, Chimaltenango y Quetzaltenango tienen un número similar de denuncias, mientras que Retalhuleu, Sacatepéquez, Jutiapa y Santa Rosa tienen el menor número de denuncias entre los 10 departamentos principales.
@@ -915,7 +915,7 @@ bet0_1 <- edad_agr_vic %>%
 bet1_inf <- edad_agr_vic %>%
   filter(vicRatioAgr >= 1.05)
 
-df <- data.frame(RANGE = c("(0,1)", "(1, infinito)"), COUNT=c(nrow(bet0_1), nrow(bet1_inf))) 
+df <- data.frame(RANGE = c("(0,0.95)", "(1.05, infinito)"), COUNT=c(nrow(bet0_1), nrow(bet1_inf))) 
 
 ggplotly(ggplot(df, aes(x=RANGE)) +
   geom_col(aes(fill = RANGE, y=COUNT, stat = "identity")) +
@@ -927,3 +927,97 @@ Como se puede apreciar por el gráfico, hay muchos más casos en donde la vícti
 
 Aún así resulta interesante los casos en dónde la víctima es mucho mayor/mucho menor al agresor. Vamos a explorar estos más adelante.
 
+## Casos en donde la víctima es mucho menor al agresor
+
+Definimos mucho menor como tiene la mitad de la edad del agresor o menos.
+```{r Casos donde la víctima es mucho menor al agresor}
+edad_agr_vic <- original %>%
+  filter(!is.na(VIC_EDAD) & !is.na(AGR_EDAD)) %>%
+  mutate(
+    vicRatioAgr = VIC_EDAD / AGR_EDAD
+  ) %>%
+  filter(vicRatioAgr <= 0.5)
+
+ggplotly(ggplot(edad_agr_vic, aes(x=vicRatioAgr)) +
+  geom_histogram(color="steelblue", fill="steelblue")+
+  labs(title = "Distribución ratio edades víctimas mucho menores", y = "Edad Víctima / Edad Agresor") +
+  theme_minimal())
+
+edad_agr_vic <- original %>%
+  filter(!is.na(VIC_EDAD) & !is.na(AGR_EDAD)) %>%
+  mutate(
+    vicRatioAgr = VIC_EDAD / AGR_EDAD
+  ) %>%
+  filter(vicRatioAgr >= 2)
+
+ggplotly(ggplot(edad_agr_vic, aes(x=vicRatioAgr)) +
+  geom_histogram(color="steelblue", fill="steelblue")+
+  labs(title = "Distribución ratio edades víctimas mucho mayores", y = "Edad Víctima / Edad Agresor") +
+  theme_minimal())
+```
+
+El histograma nos muestra que la mayoría de casos se dan cuando la víctima tiene lo más cerca que se puede su edad a la del agresor, ¿Cómo se refleja esto en los tipos de agresión?
+
+```{r Tipos de agresión para víctimas mucho menores/mayores al agresor}
+agresion_mapping <- data.frame(
+  HEC_TIPAGRE = c(1222, 2122, 2212, 2221, 1122, 1212, 1221, 2112, 2121, 2211, 
+                 1112, 1121, 2111, 1211, 1111),
+  tipo_agresion = c("Física", "Psicológica", "Sexual", "Patrimonial", 
+                   "Física - psicológica", "Física - sexual", "Física - patrimonial", 
+                   "Psicológica - sexual", "Psicológica - patrimonial", 
+                   "Sexual - patrimonial", "Física - psicológica - sexual", 
+                   "Física - psicológica - patrimonial", 
+                   "Psicológica - sexual - patrimonial", 
+                   "Física - sexual - patrimonial", 
+                   "Física - psicológica - sexual - patrimonial")
+)
+
+# Mucho menores
+edad_agr_vic <- original %>%
+  filter(!is.na(VIC_EDAD) & !is.na(AGR_EDAD)) %>%
+  mutate(
+    vicRatioAgr = VIC_EDAD / AGR_EDAD
+  ) %>%
+  filter(vicRatioAgr <= 0.5) %>%
+  left_join(agresion_mapping, by = "HEC_TIPAGRE") %>%
+  select(tipo_agresion)
+
+ggplotly(ggplot(edad_agr_vic, aes(y = tipo_agresion, fill = tipo_agresion)) +
+  geom_bar() +
+  labs(title = "Distribución de tipos de agresiones para víctimas mucho menores al agresor") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)))
+
+# Mucho mayores
+edad_agr_vic <- original %>%
+  filter(!is.na(VIC_EDAD) & !is.na(AGR_EDAD)) %>%
+  mutate(
+    vicRatioAgr = VIC_EDAD / AGR_EDAD
+  ) %>%
+  filter(vicRatioAgr >= 2) %>%
+  left_join(agresion_mapping, by = "HEC_TIPAGRE") %>%
+  select(tipo_agresion)
+
+ggplotly(ggplot(edad_agr_vic, aes(y = tipo_agresion, fill = tipo_agresion)) +
+  geom_bar() +
+  labs(title = "Distribución de tipos de agresiones para víctimas mucho mayores al agresor") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)))
+```
+
+Como se puede ver, a pesar de que la diferencia entre la edad de la víctima y su agresor es grande, la tendencia en los tipos de violencia sigue, siendo la mayor cantidad de casos por violencia psicológica o una combinación de violencia física y psicológica.
+
+
+# Problemática
+
+
+
+## Situación
+
+## Problema Científico
+
+## Objetivos
+
+## Manejo de Datos
+
+## Conclusiones
