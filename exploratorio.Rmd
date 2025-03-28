@@ -1018,7 +1018,7 @@ Intentaremos tomar en cuenta esto durante nuestro análisis, pero en realidad po
 
 ## Problema Científico
 
-¿Por qué la mayoría de denuncias dentro del dataset son de violencia física/psicológica?
+¿Cómo se da la violencia intrafamiliar en Guatemala?
 
 ## Objetivos
 
