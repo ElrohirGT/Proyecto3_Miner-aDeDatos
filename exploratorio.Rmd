@@ -22,7 +22,6 @@ library(purrr)
 library(plotly)
 ```
 
-
 # Análisis Exploratorio
 
 ## Obtención y limpieza del Dataset
@@ -492,6 +491,122 @@ ggplot(original, aes(x = factor(VIC_SEXO), y = VIC_EDAD, fill = factor(VIC_SEXO)
 Con el Boxplot de Distribución de edad de víctima por sexo, nos indican que la mediana de las víctimas mujeres es ligeramente inferior a la de los hombres, siendo de aproximadamente 30 años mediana de edad en mujeres. Además, el IQR de las mujeres es más estrecho que el de los hombres, lo que quiere decir que las edades de las víctimas mujeres se concentran más alrededor de la mediana. En el caso de las víctimas hombres, la mediana se concentra alrededor de los 38 años. 
 
 Para los valores atípicos, se observa que en el caso de las víctimas mujeres existe una mayor variabilidad en las edades extremas del grupo.
+
+## Distribución por etnia
+
+```{r Etnia}
+etnia_dict <- c(
+  "1" = "Ladino(a)",
+  "2" = "Maya",
+  "3" = "Garífuna",
+  "4" = "Xinka",
+  "5" = "Otro",
+  "6" = "No indica",
+  "9" = "Ignorado"
+)
+
+etnia_data <- original %>%
+  select(VIC_GRUPET, AGR_GURPET, HEC_TIPAGRE) %>%
+  filter(!is.na(VIC_GRUPET) & !is.na(AGR_GURPET)) %>%
+  mutate(
+    VIC_GRUPET = etnia_dict[as.character(VIC_GRUPET)],
+    AGR_GURPET = etnia_dict[as.character(AGR_GURPET)]
+  ) %>%
+  group_by(VIC_GRUPET, AGR_GURPET) %>%
+  summarise(count = n(), .groups = "drop")
+
+plot_ly(
+  data = etnia_data,
+  x = ~VIC_GRUPET,
+  y = ~count,
+  color = ~AGR_GURPET,
+  type = 'bar'
+) %>%
+  layout(
+    barmode = 'stack',
+    title = "Denuncias por grupo étnico de víctima y agresor",
+    xaxis = list(title = "Grupo étnico de la víctima"),
+    yaxis = list(title = "Número de denuncias")
+  )
+```
+
+Se observa que el grupo ladino(a) presenta el mayor número de denuncias, superando las 180,000, donde su mayor grupo de agresores, son ladinos(as). Le siguen los mayas con alrededor de 100,000 denuncias, donde de igual manera, su mismo grupo étnico tiene la mayoría de agresiones, y luego los no indicados con aproximadamente 40,000, donde ocurre lo mismo. Los grupos garífuna, otro y xinka tienen un número significativamente menor de denuncias, todos por debajo de 10,000. La gráfica resalta una disparidad en las denuncias, con una concentración notable en el grupo ladino(a) y maya, mientras que los demás grupos étnicos muestran cifras mucho más bajas.
+
+```{r Tipos AGR etnia}
+agresion_por_etnia <- original %>%
+  select(VIC_GRUPET, HEC_TIPAGRE) %>%
+  filter(!is.na(VIC_GRUPET) & !is.na(HEC_TIPAGRE)) %>%
+  mutate(
+    VIC_GRUPET = as.character(VIC_GRUPET),
+    VIC_GRUPET = case_when(
+      VIC_GRUPET == "1" ~ "Ladino(a)",
+      VIC_GRUPET == "2" ~ "Maya",
+      VIC_GRUPET == "3" ~ "Garífuna",
+      VIC_GRUPET == "4" ~ "Xinka",
+      VIC_GRUPET == "5" ~ "Otro",
+      VIC_GRUPET == "6" ~ "No indica",
+      VIC_GRUPET == "9" ~ "Ignorado",
+    ),
+    HEC_TIPAGRE = case_when(
+      HEC_TIPAGRE == 1222 ~ "Física",
+      HEC_TIPAGRE == 2122 ~ "Psicológica",
+      HEC_TIPAGRE == 2212 ~ "Sexual",
+      HEC_TIPAGRE == 2221 ~ "Patrimonial",
+      HEC_TIPAGRE == 1122 ~ "Física - psicológica",
+      HEC_TIPAGRE == 1212 ~ "Física - sexual",
+      HEC_TIPAGRE == 1221 ~ "Física - patrimonial",
+      HEC_TIPAGRE == 2112 ~ "Psicológica - sexual",
+      HEC_TIPAGRE == 2121 ~ "Psicológica - patrimonial",
+      HEC_TIPAGRE == 2211 ~ "Sexual - patrimonial",
+      HEC_TIPAGRE == 1112 ~ "Física - psicológica - sexual",
+      HEC_TIPAGRE == 1121 ~ "Física - psicológica - patrimonial",
+      HEC_TIPAGRE == 2111 ~ "Psicológica - sexual - patrimonial",
+      HEC_TIPAGRE == 1211 ~ "Física - sexual - patrimonial",
+      HEC_TIPAGRE == 1111 ~ "Física - psicológica - sexual - patrimonial",
+      TRUE ~ "Otro"
+    )
+  ) %>%
+ mutate(HEC_TIPAGRE = factor(HEC_TIPAGRE)) %>%
+  group_by(VIC_GRUPET, HEC_TIPAGRE) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  group_by(VIC_GRUPET) %>%
+  mutate(
+    total_grupo = sum(count),
+    porcentaje = count / total_grupo * 100
+  ) %>%
+  ungroup() %>%
+  arrange(VIC_GRUPET, desc(count))
+
+top_etnias <- agresion_por_etnia %>%
+  group_by(VIC_GRUPET) %>%
+  summarise(total = sum(count)) %>%
+  arrange(desc(total)) %>%
+  head(5) %>%
+  pull(VIC_GRUPET)
+
+agresion_principales <- agresion_por_etnia %>%
+  filter(VIC_GRUPET %in% top_etnias)
+
+g <- ggplot(agresion_principales, aes(x = VIC_GRUPET, y = porcentaje, fill = HEC_TIPAGRE)) +
+  geom_bar(stat = "identity", position = "stack") +
+  scale_fill_viridis_d(option = "C") +
+  labs(
+    title = "Tipos de agresión por grupo étnico de la víctima",
+    subtitle = "Distribución porcentual para los 5 grupos étnicos con más denuncias",
+    x = "Grupo étnico de la víctima",
+    y = "Porcentaje (%)",
+    fill = "Tipo de agresión"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5)
+  )
+
+ggplotly(g)
+```
+
 
 ## Relaciones socioeconómicas
 
@@ -1021,6 +1136,10 @@ Intentaremos tomar en cuenta esto durante nuestro análisis, pero en realidad po
 ¿Cómo se da la violencia intrafamiliar en Guatemala?
 
 ## Objetivos
+
+- Identificar características demográficas de víctimas y agresores en los casos de violencia.
+- Contextualizar los hallazgos considerando las limitaciones de los datos, incluyendo el posible "sesgo del superviviente" en las estadísticas.
+- Categorizar los tipos de agresión más frecuentes y su prevalencia en los diferentes departamentos del país.
 
 ## Manejo de Datos
 
