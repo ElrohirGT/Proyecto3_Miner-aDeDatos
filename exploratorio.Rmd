@@ -1042,9 +1042,9 @@ Como se puede apreciar por el gráfico, hay muchos más casos en donde la vícti
 
 Aún así resulta interesante los casos en dónde la víctima es mucho mayor/mucho menor al agresor. Vamos a explorar estos más adelante.
 
-## Casos en donde la víctima es mucho menor al agresor
+## Casos en donde la víctima es mucho menor/mayor al agresor
 
-Definimos mucho menor como tiene la mitad de la edad del agresor o menos.
+Definimos mucho menor como tiene la mitad de la edad del agresor o menos. Definimos mucho mayor en donde la víctima tiene el doble o más que la edad del agresor.
 ```{r Casos donde la víctima es mucho menor al agresor}
 edad_agr_vic <- original %>%
   filter(!is.na(VIC_EDAD) & !is.na(AGR_EDAD)) %>%
@@ -1133,7 +1133,7 @@ Intentaremos tomar en cuenta esto durante nuestro análisis, pero en realidad po
 
 ## Problema Científico
 
-¿Cómo se da la violencia intrafamiliar en Guatemala?
+¿Por qué se da la violencia intrafamiliar en Guatemala con víctimas que son mucho mayores/menores que sus agresores?
 
 ## Objetivos
 
