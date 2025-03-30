@@ -607,6 +607,7 @@ g <- ggplot(agresion_principales, aes(x = VIC_GRUPET, y = porcentaje, fill = HEC
 ggplotly(g)
 ```
 
+Dentro de cada grupo étnico, se desglosan los porcentajes de diferentes tipos de agresión, como física, patrimonial, psicológica y sexual, o combinaciones de estas. Se observa que el grupo ladino(a) presenta la mayor variedad de tipos de agresión, con porcentajes significativos en todas las categorías. El grupo maya también muestra una diversidad de agresiones, aunque con porcentajes más bajos en comparación con el ladino(a). Los grupos no indica y otro tienen porcentajes menores de agresión, pero aún presentan una variedad de tipos. El grupo xinka, representado por el color amarillo, muestra una distribución diferente, con un porcentaje alto de agresión física y psicológica, y porcentajes más bajos en otras categorías. La gráfica resalta las diferencias en los tipos de agresión experimentados por cada grupo étnico, lo que sugiere posibles factores culturales o sociales que influyen en estas disparidades.
 
 ## Relaciones socioeconómicas
 
@@ -1137,10 +1138,9 @@ Intentaremos tomar en cuenta esto durante nuestro análisis, pero en realidad po
 
 ## Objetivos
 
-- Identificar características demográficas de víctimas y agresores en los casos de violencia.
-- Contextualizar los hallazgos considerando las limitaciones de los datos, incluyendo el posible "sesgo del superviviente" en las estadísticas.
-- Categorizar los tipos de agresión más frecuentes y su prevalencia en los diferentes departamentos del país.
-
+- Examinar variables socioculturales y demográficas que pudieran estar asociadas con la prevalencia de violencia intrafamiliar en relaciones con diferencias de edad marcadas.
+- Identificar patrones y tendencias en los tipos de violencia intrafamiliar que se manifiestan cuando hay una brecha etaria considerable entre víctima y agresor.
+- Explorar posibles dinámicas de poder relacionadas con la diferencia de edad que podrían contribuir a la violencia intrafamiliar en el contexto guatemalteco.
 ## Manejo de Datos
 
 ## Conclusiones
