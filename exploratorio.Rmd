@@ -462,28 +462,35 @@ Además, se observa que en la tabla que refuerza los datos vistos en el gráfico
 Se observa cómo varía la incidencia de violencia según los rangos etarios, tanto en víctimas como en agresores. Esto permite identificar grupos especialmente vulnerables o recurrentes.
 
 ```{r Distribucion por edad}
+df_edad <- subset(original, VIC_EDAD != 99 & AGR_EDAD != 99)
+
 ggplot() +
-  geom_density(data = original, aes(x = VIC_EDAD, fill = "Víctima"), alpha = 0.5) +
-  geom_density(data = original, aes(x = AGR_EDAD, fill = "Agresor"), alpha = 0.5) +
-  labs(title = "Distribución de edades de víctimas y agresores",
-       x = "Edad", y = "Densidad", fill = "Rol") +
+  geom_density(data = df_edad, aes(x = VIC_EDAD, fill = "Víctima"), alpha = 0.5) +
+  geom_density(data = df_edad, aes(x = AGR_EDAD, fill = "Agresor"), alpha = 0.5) +
+  labs(
+    title = "Distribución de edades de víctimas y agresores",
+    x = "Edad", y = "Densidad", fill = "Rol"
+  ) +
   scale_fill_manual(values = c("Víctima" = "coral", "Agresor" = "steelblue")) +
   theme_minimal()
-
-cor_edad <- cor.test(original$VIC_EDAD, original$AGR_EDAD, method = "spearman")
-print(cor_edad)
 ```
 
-En el gráfico de la distribución de edades de víctimas y agresores, donde los datos de los agresores tienen un color azul, y el de las víctimas un color naranja; Se observa que tanto víctimas como agresores tienden a concentrarse en edades más jóvenes, de entre 13 a 38 años, con un pico alrededor de los 25 años. También se puede observar que a medida que la edad aumenta, la densidad disminuye gradualmente hasta llegar a los agresores de edades cercanas a los 100 años.
+En el gráfico de la distribución de edades de víctimas y agresores, donde los datos de los agresores tienen un color azul, y el de las víctimas un color naranja; Se observa que tanto víctimas como agresores tienden a concentrarse en edades más jóvenes, de entre 13 a 38 años, con un pico alrededor de los 25 años. También se puede observar que a medida que la edad aumenta, la densidad disminuye gradualmente hasta llegar a los agresores de edades cercanas a los 95 años.
 
-```{r} 
-ggplot(original, aes(x = factor(VIC_SEXO), y = VIC_EDAD, fill = factor(VIC_SEXO))) +
+```{r Boxplot} 
+df_victimas <- subset(original, VIC_EDAD != 99)
+
+ggplot(df_victimas, aes(x = factor(VIC_SEXO), y = VIC_EDAD, fill = factor(VIC_SEXO))) +
   geom_boxplot() +
   scale_x_discrete(labels = c("1" = "Hombre", "2" = "Mujer")) +
-  scale_fill_manual(values = c("1" = "skyblue", "2" = "pink"),
-                   labels = c("1" = "Hombre", "2" = "Mujer")) +
-  labs(title = "Distribución de edad de víctimas por sexo",
-       x = "Sexo", y = "Edad") +
+  scale_fill_manual(
+    values = c("1" = "skyblue", "2" = "pink"),
+    labels = c("1" = "Hombre", "2" = "Mujer")
+  ) +
+  labs(
+    title = "Distribución de edad de víctimas por sexo",
+    x = "Sexo", y = "Edad"
+  ) +
   theme_minimal() +
   theme(legend.position = "none")
 ```
@@ -587,24 +594,18 @@ top_etnias <- agresion_por_etnia %>%
 agresion_principales <- agresion_por_etnia %>%
   filter(VIC_GRUPET %in% top_etnias)
 
-g <- ggplot(agresion_principales, aes(x = VIC_GRUPET, y = porcentaje, fill = HEC_TIPAGRE)) +
-  geom_bar(stat = "identity", position = "stack") +
-  scale_fill_viridis_d(option = "C") +
-  labs(
-    title = "Tipos de agresión por grupo étnico de la víctima",
-    subtitle = "Distribución porcentual para los 5 grupos étnicos con más denuncias",
-    x = "Grupo étnico de la víctima",
-    y = "Porcentaje (%)",
-    fill = "Tipo de agresión"
-  ) +
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    plot.title = element_text(hjust = 0.5, face = "bold"),
-    plot.subtitle = element_text(hjust = 0.5)
-  )
-
-ggplotly(g)
+g <- plot_ly(agresion_principales, 
+             x = ~VIC_GRUPET, 
+             y = ~porcentaje, 
+             color = ~HEC_TIPAGRE, 
+             type = "bar") %>%
+  layout(
+    title = list(text = "Tipos de agresión por grupo étnico de la víctima", x = 0.5), 
+    xaxis = list(title = "Grupo étnico de la víctima", tickangle = -45), 
+    yaxis = list(title = "Porcentaje (%)"),
+    legend = list(title = list(text = "Tipo de agresión"))
+  ) 
+g
 ```
 
 Dentro de cada grupo étnico, se desglosan los porcentajes de diferentes tipos de agresión, como física, patrimonial, psicológica y sexual, o combinaciones de estas. Se observa que el grupo ladino(a) presenta la mayor variedad de tipos de agresión, con porcentajes significativos en todas las categorías. El grupo maya también muestra una diversidad de agresiones, aunque con porcentajes más bajos en comparación con el ladino(a). Los grupos no indica y otro tienen porcentajes menores de agresión, pero aún presentan una variedad de tipos. El grupo xinka, representado por el color amarillo, muestra una distribución diferente, con un porcentaje alto de agresión física y psicológica, y porcentajes más bajos en otras categorías. La gráfica resalta las diferencias en los tipos de agresión experimentados por cada grupo étnico, lo que sugiere posibles factores culturales o sociales que influyen en estas disparidades.
@@ -659,15 +660,23 @@ niveles_ordenados <- c(
 )
 
 df_long$Escolaridad <- factor(df_long$Escolaridad, levels = niveles_ordenados)
+df_long$Rol <- factor(df_long$Rol, levels = c("Víctima", "Agresor"))
 
-ggplot(df_long, aes(x = Escolaridad, fill = Rol)) +
-  geom_bar(position = "dodge") +
-  labs(title = "Distribución del nivel educativo de víctimas y agresores",
-       x = "Nivel educativo", y = "Cantidad",
-       fill = "Rol") +
-  scale_fill_manual(values = c("Víctima" = "coral", "Agresor" = "steelblue")) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+p <- plot_ly(df_long, x = ~Escolaridad, color = ~Rol, 
+             colors = c("Víctima" = "coral", "Agresor" = "steelblue")) %>%
+  add_trace(type = "histogram", histfunc = "count", 
+            autobinx = FALSE, 
+            name = ~Rol) %>%
+  layout(
+    title = "Distribución del nivel educativo de víctimas y agresores",
+    xaxis = list(title = "Nivel educativo", 
+                tickangle = 30),
+    yaxis = list(title = "Cantidad"),
+    barmode = "group",
+    legend = list(title = list(text = "Rol"))
+  )
+
+p
 ```
 
 Para la distribución de nivel de víctimas y agresores, se encontró que:
@@ -825,8 +834,16 @@ area_plot <- original %>%
   filter(HEC_AREA %in% c(1, 2)) %>%
   mutate(area = factor(HEC_AREA, levels = c(1, 2), 
                      labels = c("Urbana", "Rural")))
+prop_area <- prop.table(table(area_plot$area)) * 100
 
-prop.table(table(area_plot$area)) * 100
+fig_pie <- plot_ly(
+  labels = names(prop_area),
+  values = as.numeric(prop_area),
+  type = 'pie',
+  marker = list(colors = c("darkblue", "darkgreen"))
+) %>%
+  layout(title = "Proporción de denuncias por área",
+         showlegend = TRUE)
 
 geo_tiempo <- original %>%
   filter(HEC_AREA %in% c(1, 2) & ANO_EMISION >= 2013 & ANO_EMISION <= 2023) %>%
@@ -835,13 +852,13 @@ geo_tiempo <- original %>%
   group_by(ANO_EMISION, area) %>%
   summarise(denuncias = n(), .groups = 'drop')
 
-ggplot(geo_tiempo, aes(x = factor(ANO_EMISION), y = denuncias, fill = area, group = area)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  scale_fill_manual(values = c("Urbana" = "darkblue", "Rural" = "darkgreen")) +
-  labs(title = "Evolución de denuncias por área y año",
-       x = "Año", y = "Número de denuncias", fill = "Área") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+fig_bar <- plot_ly(data = geo_tiempo, x = ~factor(ANO_EMISION), y = ~denuncias, color = ~area, 
+                 colors = c("darkblue", "darkgreen"), type = "bar") %>%
+  layout(title = "Evolución de denuncias por área y año",
+         xaxis = list(title = "Año", tickangle = 45),
+         yaxis = list(title = "Número de denuncias"),
+         barmode = "group",
+         legend = list(title = list(text = "Área")))
 
 agresion_mapping <- data.frame(
   HEC_TIPAGRE = c(1222, 2122, 2212, 2221, 1122, 1212, 1221, 2112, 2121, 2211, 
@@ -865,14 +882,25 @@ heatmap_geo_agresor <- original %>%
 heatmap_geo_agresor <- heatmap_geo_agresor %>%
   left_join(deptos_mapping, by = "departamento")
 
-ggplot(heatmap_geo_agresor, 
-      aes(x = nombre_depto, y = tipo_agresion, fill = denuncias)) +
-  geom_tile() +
-  scale_fill_viridis_c() +
-  labs(title = "Distribución de tipos de agresiones por departamento",
-       x = "Departamento", y = "Tipo de agresión", fill = "Denuncias") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+fig_heatmap <- plot_ly(
+  data = heatmap_geo_agresor,
+  x = ~nombre_depto,
+  y = ~tipo_agresion,
+  z = ~denuncias,
+  type = "heatmap",
+  colorscale = "Viridis"
+) %>%
+  layout(
+    title = "Distribución de tipos de agresiones por departamento",
+    xaxis = list(title = "Departamento", tickangle = 90),
+    yaxis = list(title = "Tipo de agresión"),
+    coloraxis = list(colorbar = list(title = "Denuncias"))
+  )
+
+# Mostrar los gráficos
+fig_pie
+fig_bar
+fig_heatmap
 ```
 
 Para el gráfico de denuncias por área y año se observa que tanto en áreas urbanas como rurales, el número de denuncias ha fluctuado a lo largo de los años, con un incremento notable a partir de 2020. En general, las áreas urbanas tienden a tener un mayor número de denuncias en comparación con las áreas rurales, aunque la diferencia no es constante. Este gráfico permite visualizar la tendencia temporal de las denuncias y comparar la incidencia entre áreas urbanas y rurales.
@@ -894,9 +922,6 @@ agresion_mapping <- data.frame(
                    "Física - sexual - patrimonial", 
                    "Física - psicológica - sexual - patrimonial")
 )
-
-# Se van a mapear los valores con base al diccionario del INE, y 
-# se generalizó un poco para que el diagrama fuera entendible
 escolaridad_nivel <- function(x) {
   case_when(
     x == 10 ~ "Ninguno",
@@ -911,7 +936,6 @@ escolaridad_nivel <- function(x) {
     TRUE ~ NA_character_
   )
 }
-
 escol_vic <- original %>%
   mutate(
     VIC_ESCOLARIDAD_NIVEL = escolaridad_nivel(VIC_ESCOLARIDAD)
@@ -920,7 +944,6 @@ escol_vic <- original %>%
   left_join(agresion_mapping, by = "HEC_TIPAGRE") %>%
   group_by(tipo_agresion, VIC_ESCOLARIDAD_NIVEL) %>%
   summarise(escol = n(), .groups = 'drop')
-
 niveles_ordenados <- c(
   "Ninguno",
   "Primaria (1º a 6º)",
@@ -932,17 +955,22 @@ niveles_ordenados <- c(
   "Universitario (1º a 7º)",
   "Universitario (ignorado)"
 )
-
 escol_vic$VIC_ESCOLARIDAD_NIVEL <- factor(escol_vic$VIC_ESCOLARIDAD_NIVEL, levels=niveles_ordenados)
-
-ggplot(escol_vic, 
-      aes(x = VIC_ESCOLARIDAD_NIVEL, y = tipo_agresion, fill = escol)) +
-  geom_tile() +
-  scale_fill_viridis_c() +
-  labs(title = "Distribución de tipos de agresiones por escolaridad de víctima",
-       x = "Escolaridad Víctima", y = "Tipo de agresión", fill = "Denuncias") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+fig_heatmap_escol <- plot_ly(
+  data = escol_vic,
+  x = ~VIC_ESCOLARIDAD_NIVEL,
+  y = ~tipo_agresion,
+  z = ~escol,
+  type = "heatmap",
+  colorscale = "Viridis"
+) %>%
+  layout(
+    title = "Distribución de tipos de agresiones por escolaridad de víctima",
+    xaxis = list(title = "Escolaridad Víctima", tickangle = 90),
+    yaxis = list(title = "Tipo de agresión"),
+    coloraxis = list(colorbar = list(title = "Denuncias"))
+  )
+fig_heatmap_escol
 ```
 
 Como se puede ver por la gráfica, la mayoría de tipos de agresión que comete un agresor son de tipo Psicológico o Físico - Psicológico, ambos cometidos por agresores con un nivel de escolaridad de primaria.
@@ -964,36 +992,55 @@ agresion_mapping <- data.frame(
                    "Física - sexual - patrimonial", 
                    "Física - psicológica - sexual - patrimonial")
 )
-
-escol_agresor <- original %>%
-  filter(!is.na(AGR_EDAD) & !is.na(HEC_TIPAGRE)) %>%
-  left_join(agresion_mapping, by = "HEC_TIPAGRE") %>%
-  group_by(tipo_agresion, AGR_EDAD) %>%
-  summarise(escol = n(), .groups = 'drop')
-
+escolaridad_nivel <- function(x) {
+  case_when(
+    x == 10 ~ "Ninguno",
+    x >= 21 & x <= 26 ~ "Primaria (1º a 6º)",
+    x == 29 ~ "Primaria (ignorado)",
+    x >= 31 & x <= 33 ~ "Básico (1º a 3º)",
+    x == 39 ~ "Básico (ignorado)",
+    x >= 44 & x <= 46 ~ "Diversificado (4º a 6º)",
+    x == 49 ~ "Diversificado (ignorado)",
+    x >= 51 & x <= 57 ~ "Universitario (1º a 7º)",
+    x == 59 ~ "Universitario (ignorado)",
+    TRUE ~ NA_character_
+  )
+}
 escol_vic <- original %>%
-  filter(!is.na(VIC_EDAD) & !is.na(HEC_TIPAGRE)) %>%
+  mutate(
+    VIC_ESCOLARIDAD_NIVEL = escolaridad_nivel(VIC_ESCOLARIDAD)
+  ) %>%
+  filter(!is.na(VIC_ESCOLARIDAD_NIVEL) & !is.na(HEC_TIPAGRE)) %>%
   left_join(agresion_mapping, by = "HEC_TIPAGRE") %>%
-  group_by(tipo_agresion, VIC_EDAD) %>%
+  group_by(tipo_agresion, VIC_ESCOLARIDAD_NIVEL) %>%
   summarise(escol = n(), .groups = 'drop')
-
-ggplot(escol_agresor, 
-      aes(x = AGR_EDAD, y = tipo_agresion, fill = escol)) +
-  geom_tile() +
-  scale_fill_viridis_c() +
-  labs(title = "Distribución de tipos de agresiones por edad del agresor",
-       x = "Edad Agresor", y = "Tipo de agresión", fill = "Denuncias") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
-ggplot(escol_vic, 
-      aes(x = VIC_EDAD, y = tipo_agresion, fill = escol)) +
-  geom_tile() +
-  scale_fill_viridis_c() +
-  labs(title = "Distribución de tipos de agresiones por edad de víctima",
-       x = "Edad Víctima", y = "Tipo de agresión", fill = "Denuncias") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+niveles_ordenados <- c(
+  "Ninguno",
+  "Primaria (1º a 6º)",
+  "Primaria (ignorado)",
+  "Básico (1º a 3º)",
+  "Básico (ignorado)",
+  "Diversificado (4º a 6º)",
+  "Diversificado (ignorado)",
+  "Universitario (1º a 7º)",
+  "Universitario (ignorado)"
+)
+escol_vic$VIC_ESCOLARIDAD_NIVEL <- factor(escol_vic$VIC_ESCOLARIDAD_NIVEL, levels=niveles_ordenados)
+fig_heatmap_escol <- plot_ly(
+  data = escol_vic,
+  x = ~VIC_ESCOLARIDAD_NIVEL,
+  y = ~tipo_agresion,
+  z = ~escol,
+  type = "heatmap",
+  colorscale = "Viridis"
+) %>%
+  layout(
+    title = "Distribución de tipos de agresiones por escolaridad de víctima",
+    xaxis = list(title = "Escolaridad Víctima", tickangle = 90),
+    yaxis = list(title = "Tipo de agresión"),
+    coloraxis = list(colorbar = list(title = "Denuncias"))
+  )
+fig_heatmap_escol
 ```
 
 Como se puede ver por los mapas de calor, la mayoría de las víctimas que reportan casos de violencia intrafamiliar son personas cercanas a 25 años y reportan una agresión física-psicológica o solamente psicológica. Esto nos lleva a una pregunta interesante, cómo se relaciona la edad del agresor respecto a la edad de la víctima?
