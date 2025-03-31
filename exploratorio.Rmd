@@ -1170,6 +1170,458 @@ ggplotly(ggplot(edad_agr_vic, aes(y = tipo_agresion, fill = tipo_agresion)) +
 
 Como se puede ver, a pesar de que la diferencia entre la edad de la víctima y su agresor es grande, la tendencia en los tipos de violencia sigue, siendo la mayor cantidad de casos por violencia psicológica o una combinación de violencia física y psicológica.
 
+## Leyes aplicadas
+
+Otro aspecto interesante a estudiar es determinar que tipo de ley se aplica con más frecuencia a cada tipo de violencia. Esto es importantede analizar pues indica si se está aplicando la ley correcta a cada uno de los tipos de violencia o no. Antes se debe saber cuál es el significado y propósito de cada una de las leyes encontradas en el dataset. 
+
+- *Ley VIF o Decreto 96-97*:  es la ley de violencia intrafamiliar, su objetivo essancionar, erradicar y prevenir la violencia intrafamiliar y dar protección a las víctimas de la misma. 
+
+- *Ley VCM ó Decreto 22-2008*: es la ley ey contra el Femicidio y otras Formas de violencia
+contra la mujer, su objetivo es garantizar la integridad, la libertad y la igualdad de las mujeres. Busca promover e implementar disposiciones que ayuden a erradicar cualquier tipo de violencia en contra de las mujeres.
+
+- *Código penal o Decreto 17-73*: se aplico una ley definida en el código penal de Guatemala
+
+tiene por objeto prevenir, sancionar y erradicar la violencia intrafamiliar y otorgar protección a las víctimas de la misma.
+
+```{r Leyes aplicadas a cada tipo de violencia}
+
+
+agresion_mapping <- data.frame(
+  HEC_TIPAGRE = c(1222, 2122, 2212, 2221, 1122, 1212, 1221, 2112, 2121, 2211, 
+                 1112, 1121, 2111, 1211, 1111),
+  tipo_agresion = c("Física", "Psicológica", "Sexual", "Patrimonial", 
+                   "Física - psicológica", "Física - sexual", "Física - patrimonial", 
+                   "Psicológica - sexual", "Psicológica - patrimonial", 
+                   "Sexual - patrimonial", "Física - psicológica - sexual", 
+                   "Física - psicológica - patrimonial", 
+                   "Psicológica - sexual - patrimonial", 
+                   "Física - sexual - patrimonial", 
+                   "Física - psicológica - sexual - patrimonial")
+)
+
+tipo_ley <- data.frame(
+  LEY_APLICABLE = c(1,2,3,4,5,6,9),
+  tipo_ley = c("Ley VIF ó Decreto 97-96", "Ley VCM ó Decreto 22-2008", "Ambas leyes (VIF y VCM)", 
+               "Código Penal ó Decreto 17-73", "Otra", "Ley VIF y Código Penal", "Ignorado")
+)
+
+
+datos_a_usar <- original
+
+datos_a_usar <- datos_a_usar %>% 
+  left_join(tipo_ley, by = "LEY_APLICABLE") %>%
+  mutate(LEY_APLICABLE = tipo_ley) %>%
+  select(-tipo_ley)
+
+
+datos_a_usar <- datos_a_usar %>% 
+  left_join(agresion_mapping, by = "HEC_TIPAGRE") %>%
+  mutate(HEC_TIPAGRE = tipo_agresion) %>%
+  select(-tipo_agresion)
+
+first <- datos_a_usar %>% 
+  group_by(HEC_TIPAGRE, LEY_APLICABLE) %>%
+  summarise(count = n())
+
+first
+
+ggplot(first, 
+      aes(x = LEY_APLICABLE, y = HEC_TIPAGRE, fill = count)) +  
+  geom_tile() +
+  scale_fill_viridis_c(option = "plasma") +  
+  labs(title = "Ley aplicada a cada tipo de violencia",
+       x = "Ley aplicable", 
+       y = "Tipo de agresión", 
+       fill = "Número de denuncias") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        plot.title = element_text(hjust = 0.5),  
+        legend.position = "right",  
+        panel.grid.major = element_blank(),  
+        panel.grid.minor = element_blank()) 
+
+
+
+```
+Un dato importante que podemos observar del mapa de calor es que hay muchas denuncias en las que no se tiene registro de cuál fue la ley que se aplicó, la mayor parte de las denuncias en las que no se tiene información de la ley aplicada es en la de violencia psicológica o violencia física-psicológica, que haya tantas denuncias en las que no se tiene registro puede indicar que hay bastantes denuncias en las que no se aplicó ninguna ley y no hubo ninguna sanción a el/la denunciante, también puede significar 
+
+A gran parte de las denuncias de violencia psicológica son a las que más se le aplica el decreto 97-66, podríamos 
+
+
+## Situación laboral de las víctimas y agresores en las denuncias de violencia económica
+```{r}
+
+data <- original
+data <- data %>% mutate(VIC_TRABAJA = factor(VIC_TRABAJA, levels = c(1, 2), 
+                              labels = c("Víctima trabaja", "Víctima No trabaja")),
+         AGR_TRABAJA = factor(AGR_TRABAJA, levels = c(1, 2), 
+                              labels = c("Agresor trabaja", "Agresor No trabaja")))
+
+```
+
+
+
+# Clustering 
+
+Para el clustering descartaremos algunas variables como el día del hecho, el municipio en donde ocurrió el hecho, el día de emisión de la denuncia y el número de boleta de l denuncia, esto se hará ya que la región geográfica se determinará por medio del departamento en donde ocurrieron, la época del año de la denuncia será determinada por el mes en dónde ocurrió mientras que el número de boleta simplemente indica un identificador único de la denuncia. 
+
+```{r echo = FALSE}
+data_to_cluster <- original
+
+qualitative_vars <- c(
+  "HEC_DEPTO", "DEPTO_MUNICIPIO", "QUIEN_REPORTA", "VIC_SEXO", 
+  "VIC_ALFAB", "VIC_ESCOLARIDAD", "VIC_EST_CIV", "VIC_GRUPET", 
+  "VIC_NACIONAL", "VIC_TRABAJA", "VIC_OCUP", "VIC_DEDICA", 
+  "VIC_DISC", "TIPO_DISCAQ", "HEC_AREA", "HEC_TIAGRE", 
+  "HEC_RECUR_DENUN", "INST_DONDE_DENUNCIO", "AGR_SEXO", 
+  "AGR_ALFAB", "AGR_ESCOLARIDAD", "AGR_EST_CIV", "AGR_GRUPET", 
+  "AGR_NACIONAL", "AGR_TRABAJA", "AGR_OCUP", "AGR_DEDICA", 
+  "INST_DENUN_HECHO", "ORGANISMO_JURISDICCIONAL", "CONDUCENTE", 
+  "MEDIDAS_SEGURIDAD", "LEY_APLICABLE", "ARTICULOVIF", 
+  "ARTICULOVCM", "ARTICULOCODPEN", "ARTICULOTRAS", 
+  "TIPO_MEDIDA", "ORGANISMO_REMITE"
+)
+
+#Mapear
+
+deptos_mapping <- data.frame(
+  departamento = 1:22,
+  dep_nombre = c("Guatemala", "El Progreso", "Sacatepéquez", "Chimaltenango", 
+                   "Escuintla", "Santa Rosa", "Sololá", "Totonicapán", 
+                   "Quetzaltenango", "Suchitepéquez", "Retalhuleu", "San Marcos",
+                   "Huehuetenango", "Quiché", "Baja Verapaz", "Alta Verapaz", 
+                   "Petén", "Izabal", "Zacapa", "Chiquimula", "Jalapa", "Jutiapa")
+)
+
+estado_civil <- function(x) {
+  case_when(
+    x == 1 ~ "Soltero/a",
+    x == 2 ~ "Casado/a",
+    x == 3 ~ "Unido/a",
+    x == 4 ~ "Viudo/a",
+    x == 5 ~ "Otro",
+    TRUE ~ NA_character_
+  )
+}
+
+grupo_etnico <- function(x) {
+  case_when(
+    x == 1 ~ "Ladino(a)",
+    x == 2 ~ "Maya",
+    x == 3 ~ "Garífuna",
+    x == 4 ~ "Xinka",
+    x == 5 ~ "Otro",
+    x == 6 ~ "No indica",
+    TRUE ~ NA_character_
+  )
+}
+
+
+alfabetismo_nivel <- function(x){
+  case_when(
+    x == 1 ~ "Alfabeta",
+    x == 2 ~ "Analfabeta",
+    TRUE ~ NA_character_
+  )
+}
+
+dedicacion <- function(x) {
+  case_when(
+    x == 1 ~ "Quehaceres del hogar",
+    x == 2 ~ "Renta o jubilación",
+    x == 3 ~ "Estudiar",
+    x == 4 ~ "Desempleado",
+    x == 5 ~ "Otro",
+    TRUE ~ NA_character_
+  )
+}
+
+data_to_cluster <- data_to_cluster %>% 
+  left_join(deptos_mapping, by = c("HEC_DEPTO" = "departamento")) %>% mutate(HEC_DEPTO = dep_nombre) %>% select(-dep_nombre)
+
+data_to_cluster <- data_to_cluster %>% 
+  left_join(deptos_mapping, by = c("DEPTO" = "departamento")) %>% mutate(DEPTO = dep_nombre) %>% select(-dep_nombre)
+
+data_to_cluster <- data_to_cluster %>% left_join(tipo_ley, by = "LEY_APLICABLE") %>%
+  mutate(LEY_APLICABLE = tipo_ley) %>%
+  select(-tipo_ley)
+
+data_to_cluster <- data_to_cluster %>% 
+  left_join(agresion_mapping, by = "HEC_TIPAGRE") %>%
+  mutate(HEC_TIPAGRE = tipo_agresion) %>%
+  select(-tipo_agresion)
+
+data_to_cluster <- data_to_cluster %>%
+  mutate(
+    VIC_ESCOLARIDAD = escolaridad_nivel(VIC_ESCOLARIDAD)
+  )
+
+data_to_cluster <- data_to_cluster %>%
+  mutate(
+    VIC_DEDICA = dedicacion(VIC_DEDICA)
+  )
+data_to_cluster <- data_to_cluster %>%
+  mutate(
+    AGR_DEDICA = dedicacion(AGR_DEDICA)
+  )
+
+data_to_cluster <- data_to_cluster %>%
+  mutate(
+    AGR_ESCOLARIDAD = escolaridad_nivel(AGR_ESCOLARIDAD)
+  )
+
+data_to_cluster <- data_to_cluster %>% mutate(AGR_GURPET = grupo_etnico(AGR_GURPET))
+data_to_cluster <- data_to_cluster %>% mutate(VIC_GRUPET = grupo_etnico(VIC_GRUPET))
+
+data_to_cluster <- data_to_cluster %>%
+  mutate(
+    VIC_ALFAB = alfabetismo_nivel(VIC_ALFAB)
+  )
+data_to_cluster <- data_to_cluster %>%
+  mutate(
+    AGR_ALFAB = alfabetismo_nivel(AGR_ALFAB)
+  )
+
+data_to_cluster <- data_to_cluster %>% 
+  mutate(
+    VIC_EST_CIV = factor(VIC_EST_CIV, levels = 1:5,
+                         labels = c("Soltero/a", "Casado/a", "Unido/a", 
+                                    "Viudo/a", "Otro")),
+    AGR_EST_CIV = factor(AGR_EST_CIV, levels = 1:5,
+                         labels = c("Soltero/a", "Casado/a", "Unido/a", 
+                                    "Viudo/a", "Otro"))
+  )
+
+data_to_cluster <- data_to_cluster %>%   mutate(HEC_AREA = factor(HEC_AREA, levels = c(1, 2), 
+                     labels = c("Urbana", "Rural")))
+
+data_to_cluster <- data_to_cluster %>% mutate(VIC_TRABAJA = factor(VIC_TRABAJA, levels = c(1, 2), 
+                              labels = c("Víctima trabaja", "Víctima No trabaja")),
+         AGR_TRABAJA = factor(AGR_TRABAJA, levels = c(1, 2), 
+                              labels = c("Agresor trabaja", "Agresor No trabaja")))
+
+data_to_cluster <- data_to_cluster %>% mutate(HEC_RECUR_DENUN = factor(HEC_RECUR_DENUN, levels = c(1,2), labels = c("Si", "No")))
+
+
+
+data_to_cluster <- data_to_cluster %>% mutate(VIC_DISC = factor(VIC_DISC, levels = c(1,2), labels = c("Con discapacidad", "Sin discapacidad")))
+data_to_cluster <- data_to_cluster %>% mutate(VIC_REL_AGR = factor(VIC_REL_AGR, levels = c(1,2,3,4,5,6,7,8,9,10), labels = c("Esposo/a", "Conviviente", "Exconviviente", "Hijos/a","Hijastros/a", "Padre/Madre", "Nieto/a", "Suegro/a", "Hermano/a", "Otro pariente")))
+data_to_cluster <- data_to_cluster %>% mutate(TIPO_DISCAQ = factor(TIPO_DISCAQ, levels = c(1,2,3,4,5,6), labels = c("Ceguera", "Sordera", "Discapacidad extremidades superiores", "Discapacidad extremidades inferiores", "Deficiencia mental", "Otra discapacidad")))
+data_to_cluster <- data_to_cluster %>% 
+  mutate(INST_DONDE_DENUNCIO = factor(INST_DONDE_DENUNCIO, 
+                                      levels = c(1, 2, 3, 4, 5, 6), 
+                                      labels = c("Ministerio Público", 
+                                                "Procuraduría General de la Nación", 
+                                                "Policía Nacional Civil", 
+                                                "Organismo Judicial", 
+                                                "Bufetes Populares", 
+                                                "Procuraduría de los Derechos Humanos")))
+
+
+data_to_cluster <- data_to_cluster %>% mutate(QUIEN_REPORTA = factor(QUIEN_REPORTA, levels = c(1,2,3), labels = c("Víctima", "Familiar de la víctima", "Otros")))
+
+data_to_cluster <- data_to_cluster %>% 
+  mutate(
+    AGR_SEXO = factor(AGR_SEXO, 
+                     levels = c(1, 2), 
+                     labels = c("Hombre", "Mujer")),
+    VIC_SEXO = factor(VIC_SEXO, 
+                     levels = c(1, 2), 
+                     labels = c("Hombre", "Mujer"))
+  )
+
+data_to_cluster <- data_to_cluster %>% 
+  mutate(
+    VIC_NACIONAL = factor(VIC_NACIONAL, 
+                     levels = c(1, 2), 
+                     labels = c("Guatemalteca", "Extranjera")),
+    AGR_NACIONAL = factor(AGR_NACIONAL, 
+                     levels = c(1, 2), 
+                     labels = c("Guatemalteca", "Extranjera"))
+  )
+
+data_to_cluster <- data_to_cluster %>% 
+  mutate(
+    INST_DENUN_HECHO = factor(INST_DENUN_HECHO, 
+                             levels = c(1, 2, 3, 4, 5, 6), 
+                             labels = c("Ministerio Público", 
+                                       "Procuraduría General de la Nación", 
+                                       "Policía Nacional Civil", 
+                                       "Organismo Judicial", 
+                                       "Bufetes Populares", 
+                                       "Procuraduría de los Derechos Humanos"))
+  )
+
+data_to_cluster <- data_to_cluster %>% 
+  mutate(
+    ORGANISMO_JURISDICCIONAL = factor(ORGANISMO_JURISDICCIONAL, 
+                                      levels = 1:16, 
+                                      labels = c(
+                                        "Juzgados de Paz",
+                                        "Juzgados de Paz Comunitarios",
+                                        "Juzgados de Paz Penal",
+                                        "Juzgado de Paz Penal de Conocimiento a Prevención de Delitos de Narcotráfico, Defraudación y Contrabando Aduanero, Violencia Sexual, Explotación y Trata de Personas",
+                                        "Juzgados de Paz Penal de Turno/24horas",
+                                        "Juzgados de Paz Móvil",
+                                        "Juzgado de Paz con Competencia Específica para la Protección en Materia de Violencia Intrafamiliar, y de Niñez y Adolescencia Amenazada o Violada en sus Derechos (de turno)",
+                                        "Juzgados de Primera Instancia Penal, Narcoactividad y Delitos contra el Ambiente",
+                                        "Juzgados de Primera Instancia Penal, Narcoactividad y Delitos contra el Ambiente de Turno/24 horas",
+                                        "Juzgado de Turno de Primera Instancia Penal de Delitos de Femicidio y otras formas de Violencia contra la contra la Mujer y Violencia Sexual, Explotación y Trata de Personas",
+                                        "Juzgados de Primera Instancia Penal de Delitos de Femicidio y otras formas de Violencia contra la Mujer",
+                                        "Tribunales de Sentencia Penal, Narcoactividad y Delitos contra el Ambiente",
+                                        "Tribunales de Sentencia Penal de Delitos de Femicidio y otras formas de Violencia en contra de la Mujer",
+                                        "Juzgados de Primera Instancia Ramo Mixto",
+                                        "Juzgados de Primera Instancia de Familia",
+                                        "Juzgados de Adolescentes en Conflicto con la Ley Penal"
+                                      ))
+  )
+
+data_to_cluster <- data_to_cluster %>% 
+  mutate(
+    CONDUCENTE = factor(CONDUCENTE, 
+                        levels = c(1, 2), 
+                        labels = c("Si", "No"))
+  )
+
+data_to_cluster <- data_to_cluster %>% 
+  mutate(
+    MEDIDAS_SEGURIDAD = factor(MEDIDAS_SEGURIDAD, 
+                              levels = c(1, 2), 
+                              labels = c("Medidas otorgadas", 
+                                        "Medidas no otorgadas"))
+  )
+
+data_to_cluster <- data_to_cluster %>% 
+  mutate(
+    ORGANISMO_REMITE = factor(ORGANISMO_REMITE, 
+                             levels = 1:18, 
+                             labels = c(
+                               "Juzgados de Paz",
+                               "Juzgados de Paz Comunitarios",
+                               "Juzgados de Paz Penal",
+                               "Juzgado de Paz Penal de Conocimiento a Prevención de Delitos de Narcotráfico, Defraudación y Contrabando Aduanero, Violencia Sexual, Explotación y Trata de Personas",
+                               "Juzgados de Paz Penal de Turno/24horas",
+                               "Juzgados de Paz Móvil",
+                               "Juzgado de Paz con Competencia Específica para la Protección en Materia de Violencia Intrafamiliar, y de Niñez y Adolescencia Amenazada o Violada en sus Derechos (de turno)",
+                               "Juzgados de Primera Instancia Penal, Narcoactividad y Delitos contra el Ambiente",
+                               "Juzgados de Primera Instancia Penal, Narcoactividad y Delitos contra el Ambiente de Turno/24 horas",
+                               "Juzgado de Turno de Primera Instancia Penal de Delitos de Femicidio y otras formas de Violencia contra la contra la Mujer y Violencia Sexual, Explotación y Trata de Personas",
+                               "Juzgados de Primera Instancia Penal de Delitos de Femicidio y otras formas de Violencia en contra de la Mujer",
+                               "Tribunales de Sentencia Penal, Narcoactividad y Delitos contra el Ambiente",
+                               "Tribunales de Sentencia Penal de Delitos de Femicidio y otras formas de Violencia en contra de la Mujer",
+                               "Juzgados de Primera Instancia Ramo Mixto",
+                               "Juzgados de Primera Instancia de Familia",
+                               "Juzgados de Adolescentes en Conflicto con la Ley Penal",
+                               "Ministerio Público (como órgano estatal)",
+                               "Este mismo órgano"
+                             ))
+  )
+data_to_cluster <- data_to_cluster %>% select(-HEC_DIA)  %>% select(-HEC_DEPTOMCPIO) %>% select(-NUMERO_BOLETA) %>% select(-DIA_EMISION) %>% select(-TIPO_MEDIDA) %>% select(-ARTICULOVIF1) %>% select(-ARTICULOVIF2) %>% select(-ARTICULOVIF3) %>% select(-ARTICULOVIF4) %>% select(-ARTICULOVCM1) %>% select(-ARTICULOVCM2) %>% select(-ARTICULOVCM3) %>% select(-ARTICULOVCM4) %>% select(-ARTICULOCODPEN1) %>% select(-ARTICULOCODPEN2) %>% select(-ARTICULOCODPEN3) %>% select(-ARTICULOCODPEN4) %>% select(-ARTICULOTRAS1) %>% select(-ARTICULOTRAS2) %>% select(-ARTICULOTRAS3) %>% select(-ARTICULOTRAS4) %>% select(-DEPTO_MCPIO) %>% select(-VIC_OCUP) %>% select(-AGR_OCUP)
+
+
+quantitative_vars <- c(
+  "ANO_EMISION", "MES_EMISION", "VIC_EDAD", "TOTAL_HIJOS", 
+  "NUM_HIJ_HOM", "NUM_HIJ_MUJ", "HEC_MES", "HEC_ANO", "OTRAS_VICTIMAS",
+  "AGRESORES_OTROS_TOTAL", "AGR_OTROS_HOM", "AGR_OTRAS_MUJ", "AGR_OTROS_N_OS", 
+  "AGR_OTRAS_N_AS", "OTRAS_VICTIMAS", "VIC_OTRAS_HOM", "VIC_OTRAS_MUJ", 
+  "VIC_OTRAS_N_OS", "VIC_OTRAS_N_AS", "AGR_EDAD"
+)
+
+data_to_cluster <- data_to_cluster %>%
+  mutate(across(all_of(quantitative_vars), ~ifelse(is.na(.), median(., na.rm = TRUE), .))) #Reemplazar NA's con la mediana
+
+qualitative_vars_existentes <- intersect(qualitative_vars, colnames(data_to_cluster))
+
+# Convertir NA a un valor específico en las variables categóricas (antes del one-hot encoding)
+data_to_cluster <- data_to_cluster %>%
+  mutate(across(all_of(qualitative_vars_existentes), ~as.factor(ifelse(is.na(.), "MISSING", as.character(.)))))
+
+# Aplicar one-hot encoding a las variables cualitativas existentes
+# dummy_cols() crea nuevas columnas para cada categoría con valores 0 y 1
+data_to_cluster_encoded <- dummy_cols(data_to_cluster, 
+                                     select_columns = qualitative_vars_existentes,
+                                     remove_selected_columns = TRUE,
+                                     remove_first_dummy = FALSE)
+
+
+# Identificar columnas que NO son character ni factor
+columnas_a_mantener <- names(data_to_cluster_encoded)[!sapply(data_to_cluster_encoded, function(x) is.character(x) | is.factor(x))]
+
+# Crear un nuevo dataframe solo con las columnas numéricas
+data_to_cluster_encoded_numeric <- data_to_cluster_encoded %>%
+  select(all_of(columnas_a_mantener))
+
+
+
+
+
+
+```
+
+### ¿Podemos hacer clustering?
+
+Debido a que el dataset a utilizar es demasiado grande, por lo tanto se utilizará una muestra aleatoria de 30,000 filas. 
+
+```{r}
+
+set.seed(245)
+
+indices_muestra <- sample(1:nrow(data_to_cluster_encoded_numeric), 30000)
+data_muestra <- data_to_cluster_encoded_numeric[indices_muestra, ]
+
+hopkins(data_muestra)
+
+
+
+```
+El resultado del estadístico de Hopkins fue 1, bastante alejado de 0.5, esto indica que hay bastante aleatoriedad en los datos y que el clustering es factible.
+
+### Número de clústers
+
+Ahora se utilizará el método de codo para determinar cuántos clústers debemos hacer. 
+
+```{r}
+
+wss=0
+for (i in 1:10) 
+  wss[i] <- sum(kmeans(data_muestra, centers=i)$withinss)
+
+plot(1:10, wss, type="b", xlab="Nuúmero de clústers",  ylab="Suma de cuadrados dentro de los grupos")
+
+```
+
+Se puedo observar que la caída empieza a ser menos pronunciada luego de los valores 3 o 5 en el eje x, por lo tanto se utilizarán 5 clústers para el algoritmo k-means.
+
+### Algoritmo K-means
+
+Se escogió el algoritmo k-means para hacer el agrupamiento.
+```{r}
+
+km<-kmeans(data_muestra,5,iter.max =100)
+data_muestra$grupo<-km$cluster
+
+```
+
+Este fue el resultado del algoritmo
+```{r}
+km
+```
+
+
+
+### Hallazgos del agrupamiento
+
+Se obtuvo que la media de agrupamiento es de 62.3%
+
+```{r}
+plotcluster(data_muestra,km$cluster)
+
+```
+### Variables de más importancia en los clústers
+
+
+
+
 
 # Problemática
 
