@@ -1,0 +1,129 @@
+---
+title: "Análisis Exploratorio"
+author: "Flavio Galán, Gustavo Cruz, Pedro Guzmán"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r Cargar librerias}
+library(rio)
+library(janitor)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(viridis)
+library(scales)
+library(readxl)
+library(purrr)
+library(plotly)
+```
+
+
+# Antecedentes y Selección de Algoritmo
+
+```{r Unión de los datos}
+
+original <- import("Datos/2023.sav")
+
+addToDataset <- function(year) {
+  data <- import(paste("Datos/", year, ".sav", sep=""))
+  # reduced <- data[,colnames(original)]
+  original <<- bind_rows(original, data)
+}
+
+ifValueConvertToNA <- function(column, values) {
+  # print(paste("Removing ignored values from:", column))
+  original[,c(column)] <<- ifelse(original[,c(column)] %in% values, NA, original[,c(column)])
+}
+
+for (year in 2013:2022) {
+  addToDataset(year)
+}
+
+ignoredValues <- c(9, 99, 999, 9999)
+affectedColumns <- c(
+  "VIC_EDAD",
+  "TOTAL_HIJOS",
+  "NUM_HIJ_HOM",
+  "NUM_HIJ_MUJ",
+  "VIC_ALFAB",
+  "VIC_ESCOLARIDAD",
+  "VIC_EST_CIV",
+  "VIC_GRUPET",
+  "VIC_NACIONAL",
+  "VIC_TRABAJA",
+  "VIC_OCUP",
+  "VIC_DEDICA",
+  "VIC_DISC",
+  "TIPO_DISCAQ",
+  "OTRAS_VICTIMAS",
+  "VIC_OTRAS_HOM",
+  "VIC_OTRAS_MUJ",
+  "VIC_OTRAS_N_OS",
+  "VIC_OTRAS_N_AS",
+  "HEC_DIA",
+  "HEC_MES",
+  "HEC_ANO",
+  "HEC_DEPTO",
+  "HEC_DEPTOMCPIO",
+  "HEC_AREA",
+  "HEC_RECUR_DENUN",
+  "INST_DONDE_DENUNCIO",
+  "AGR_EDAD",
+  "AGR_ALFAB",
+  "AGR_ESCOLARIDAD",
+  "AGR_EST_CIV",
+  "AGR_GURPET",
+  "AGR_NACIONAL",
+  "AGR_TRABAJA",
+  "AGR_OCUP",
+  "AGR_DEDICA",
+  "AGRESORES_OTROS_TOTAL",
+  "AGR_OTROS_HOM",
+  "AGR_OTRAS_MUJ",
+  "AGR_OTROS_N_OS",
+  "AGR_OTRAS_N_AS",
+  "CONDUCENTE",
+  "LEY_APLICABLE",
+  "ARTICULOVIF1",
+  "ARTICULOVIF2",
+  "ARTICULOVIF3",
+  "ARTICULOVIF4",
+  "ARTICULOVCM1",
+  "ARTICULOVCM2",
+  "ARTICULOVCM3",
+  "ARTICULOVCM4",
+  "ARTICULOCODPEN1",
+  "ARTICULOCODPEN2",
+  "ARTICULOCODPEN3",
+  "ARTICULOCODPEN4",
+  "ARTICULOTRAS1",
+  "ARTICULOTRAS2",
+  "ARTICULOTRAS3",
+  "ARTICULOTRAS4",
+  "MEDIDAS_SEGURIDAD",
+  "ORGANISMO_REMITE",
+  "QUIEN_REPORTA",
+  "ORGANISMO_JURISDICCIONAL"
+)
+
+
+for (col in affectedColumns) {
+	ifValueConvertToNA(col, ignoredValues)
+}
+
+# Ignorar también TIPO_MEDIDA, se ignora con valor z
+ifValueConvertToNA("TIPO_MEDIDA", c("z"))
+
+# Por alguna razón se crea esta columna, todos sus valores son NAN así que la borramos.
+original$`filter_$` <- NULL
+
+summary(original)
+```
+
+Con esto podemos decir que el dataset tiene `r ncol(original)` variables y `r nrow(original)` observaciones.
+
