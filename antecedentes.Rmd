@@ -127,3 +127,15 @@ summary(original)
 
 Con esto podemos decir que el dataset tiene `r ncol(original)` variables y `r nrow(original)` observaciones.
 
+
+# Antecedentes
+
+
+
+# Referencias
+
+Ley, C., & Rato Barrio, M. (2008). Violencia intrafamiliar: Un estudio sobre la acción psicosocial basada en los contextos socioculturales y la participación activa de las mujeres indígenas en Guatemala. In IV Congreso Universidad y Cooperación para el Desarrollo. Libro y CD de Comunicaciones (Vol. 1).
+
+Fernández Melgar, A. A. (2023). La pobreza como factor promotor de violencia intrafamiliar de casos judializados en el departamento de Guatemala (Doctoral dissertation, Universidad de San Carlos de Guatemala).
+
+Pineda González, A., & Arana Sincal, L. M. (2015). Percepción de la violencia intrafamiliar en los niños de la Escuela Oficial Urbana Mixta del Cantón Norte, Patzún, Chimaltenango, Guatemala (Doctoral dissertation, Universidad de San Carlos de Guatemala).
