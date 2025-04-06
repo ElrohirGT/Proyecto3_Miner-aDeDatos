@@ -127,12 +127,16 @@ summary(original)
 
 Con esto podemos decir que el dataset tiene `r ncol(original)` variables y `r nrow(original)` observaciones.
 
+## Predicción Buscada
 
-# Antecedentes
+Buscamos predecir la diferencia de edad entre la víctima y el abusador. La razón por la que seleccionamos esta variable es que para realizar una predicción del tipo "¿Una víctima reportará ser abusada o no?" necesitamos saber más datos sobre todas las personas que no reportaron ser abusadas, los cuáles realmente no los tenemos. Por lo tanto, nuestro modelo se basa ya sabiendo que la víctima reportó ser abusada, según las características del caso ¿Cuál es la diferencia de edad entre la víctima y el abusador?
+
+
+## Antecedentes
 
 
 
-# Referencias
+## Referencias
 
 Ley, C., & Rato Barrio, M. (2008). Violencia intrafamiliar: Un estudio sobre la acción psicosocial basada en los contextos socioculturales y la participación activa de las mujeres indígenas en Guatemala. In IV Congreso Universidad y Cooperación para el Desarrollo. Libro y CD de Comunicaciones (Vol. 1).
 
