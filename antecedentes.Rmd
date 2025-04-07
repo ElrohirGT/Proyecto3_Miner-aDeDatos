@@ -149,6 +149,30 @@ El marco legal guatemalteco reconoce la violencia intrafamiliar como una violaci
 
 En este contexto, nuestro proyecto busca contribuir a la prevención y detección temprana de la violencia intrafamiliar, particularmente en casos donde existe una diferencia de edad significativa entre víctima y agresor. Las consecuencias de la violencia intrafamiliar son profundas y multidimensionales, afectando tanto a las víctimas directas como a su entorno familiar y social. Cabrera Pérez-Armiñan (2006) identifica diversas implicaciones psicosociales, como la invalidación de la experiencia de sufrimiento, sentimientos de impotencia, culpa y vergüenza, alteración de la necesidad básica de protección, y destrucción de la confianza social, manifestándose en síntomas como ansiedad, depresión, estrés y miedo, que con frecuencia se somatizan en dolores corporales. Basándonos en los patrones identificados en el análisis de datos del INE, consideramos fundamental desarrollar herramientas predictivas que permitan identificar configuraciones de riesgo y factores protectores, particularmente en relación con la diferencia de edad, para implementar intervenciones más efectivas y oportunas. Como señalan Ley y Rato (2008), los programas de acción psicosocial que parten de la participación activa de las propias víctimas y se adaptan a sus contextos socioculturales han demostrado mayor efectividad en la ruptura de ciclos de violencia. El modelo predictivo que proponemos busca complementar estos enfoques, proporcionando información valiosa para la identificación temprana de casos de alto riesgo y la asignación eficiente de recursos preventivos, contribuyendo así a los esfuerzos nacionales para reducir la incidencia de violencia intrafamiliar en Guatemala y mitigar sus devastadoras consecuencias individuales y sociales.
 
+# Algoritmos a utilizar
+
+En base a la investigación realizada en la sección de antecendentes, se puede determinar que varios factores influyen en la diferencia de edad entre la víctima y el agresor, además de esto, el análisis exploratorio reveló que la diferencia de edad entre la víctima y el agresor se cumplen ciertos patrones, por ejemplo, en el clúster 1 la víctima y el agresor tenían una diferencia de edad menor y además de eso en las denuncias de ese clúster había una menor cantidad de hijos/as de la víctima en comparación a los demás clústers. Esto indica que hay patrones que se repiten a lo largo de la denuncia y juegan un papel clave para determinar la diferencia de edad entre la víctima y el agresor. 
+Para predecir la diferencia de edad entre la víctima y el agresor, se pueden usar 2 enfoques diferentes:
+
+- *Usar un algoritmo que prediga a qué clúster pertence una unidad con cierta información sobre una denuncia*
+- *Usar un algoritmo que en base a una entrada con información sobre una denuncia o el entorno familiar, prediga el valor numérico exacto de la diferencia de edad entre la víctima y el agresor*
+
+Para estos dos enfoques, se pueden usar algortimos de clasificación o algoritmos de regresión, los primeros son de ayuda para organizar los datos en categorías, los segundos son ideales para predecir valores numéricos.
+
+Otro dato a tomar en cuenta para la seleccioón de los algoritmos a utilizar es el tipo de variables que se usarán, la inverstigación demostró que factores como la situación laboral o el estado civil son importantes para determinar información importante sobre la relación entre la víctima y el agresor, sin embargo en el dataset utilizado las variables que indican estos aspectos son del tipo categórica, hay algoritmos que son mejores para trabajar con variables categóricas mientras que otros necesitan el descarte de estas variables o asignarles algún tipo de codificación numérica. 
+
+- *Regresión*: 
+
+- *Random forest*: este algoritmo consiste en generar una serie de árboles de decisión, cada uno de estos árboles es entrenado con una muestra aleatoria de los datos y un subconjunto de características en cada nodo. Para hacer una predicción, el algoritmo selecciona la predicción más frercuente en cada uno de los árboles. En este proyecto se podría entrenar un algoritmo random forest con todas las variables necesarias para determinar la diferencia de edad entre agresor y luego utilizar los clústers como las categoríasa predecir. Las ventajas de estea algoritmo es que es ideal para trabajar con variables categóricas y es eficiente conn grandes volúmenes de datos. Este algoritmo también puede ser usado con el enfoque numérico del problema, pues también puede usarse para modelar un modelo de regresión.
+
+- *Red neuronal*: es un modelo computacional basado en el funcionamiento del cerebro humano. Poseen una serie de capas las cuáles simulan el funcionamiento de una neurona humana, cada neurona tiene una función de activación y están conectadas por una serie de pesos. Cada neurona tiene una función de activación (RELU, sigmoide, etc) la cuál permite que el algoritmo pueda aprender las relacones entre los datos. La red tabién  usa un algoritmo de descenso gradiente para ajustar los pesos de ls conexiones entre cada neurona de manera a que el error de predicción sea el mínimo posible. Para el caso de este proyecto, se podría usar una red neuronal que conste de n entradas que representen las variables que son de suma importancia para predecir la variable respuesta, luego utilizar una serie de capas ocultas que permitan reduccir al máximo el error en la predicción, luego generar 5 salidas, cada salida indica la probabilidad de que una serie de datos de entrada pertenezca a uno delos clústers hallados en la fase de clustering. Una de las mayores ventajas de usar este algoritmo para el proyecto es ideal para usar los clústers generados pues es bastante útil y práctico para generar salidas de mayor tamaño, sin embargo una desventaja es que requiere la codificación numérica de las variables lo cuál provocaría un aumento en el tamaño de la entrada. 
+Este algoritmo también puede usarse con el enfoque numérico del problema ya que podría generarse una sola salida numérica la cuál indique el valor de la diferencia de edad entre agresor y víctima. 
+
+- *Árbol de clasificación*: un árbol de decisión o clasificación es un algoritmo que divide el espacio de datos en regiones, asignando una etiqueta de cada clase a cada región. En un árbol de decisión, los nodos represetan preguntas que dividen la información y las hojas son el resultado de hacer la división, las hojas indican a que clase pertence una entrada. Es ideal para el proyecto pues puede usarse tanto para el enofque de clustering y el enfoque numérico. Las ventajas de usar este algoritmo es que es útil con variables categóricas y puede capturar patrones complejos entre los datos. Una desventaja es que tiende al sobreajuste si se usan una gran cantidad de variables y es muy sensible a cambios en la información.
+
+Todos estos algoritmos tienen una serie de ventajas las cuáles pueden ser útiles para realizar la predicción de la variable respuesta.  
+
+
 
 ## Referencias
 
@@ -156,4 +180,13 @@ Ley, C., & Rato Barrio, M. (2008). Violencia intrafamiliar: Un estudio sobre la 
 
 Fernández Melgar, A. A. (2023). La pobreza como factor promotor de violencia intrafamiliar de casos judializados en el departamento de Guatemala (Doctoral dissertation, Universidad de San Carlos de Guatemala).
 
-Pineda González, A., & Arana Sincal, L. M. (2015). Percepción de la violencia intrafamiliar en los niños de la Escuela Oficial Urbana Mixta del Cantón Norte, Patzún, Chimaltenango, Guatemala (Doctoral dissertation, Universidad de San Carlos de Guatemala).
+Pineda González, A., & Arana Sincal, L. M. (2015). Percepción de la violencia intrafamiliar en los niños de la Escuela Oficial Urbana Mixta del Cantón Norte, Patzún, Chimaltenango, Guatemala (Doctoral dissertation, Universidad de San Carlos de Guatemala)
+
+What is a neural network? (2025, enero 27). Ibm.com. https://www.ibm.com/think/topics/neural-networks
+
+¿Qué es Random Forest? (2025, febrero 27). Ibm.com. https://www.ibm.com/mx-es/think/topics/random-forest
+
+1.10. Decision Trees. (s/f). Scikit-Learn. Recuperado el 7 de abril de 2025, de https://scikit-learn.org/stable/modules/tree.html
+
+
+
