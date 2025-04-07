@@ -1,0 +1,159 @@
+---
+title: "Análisis Exploratorio"
+author: "Flavio Galán, Gustavo Cruz, Pedro Guzmán"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r Cargar librerias}
+library(rio)
+library(janitor)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(viridis)
+library(scales)
+library(readxl)
+library(purrr)
+library(plotly)
+```
+
+
+# Antecedentes y Selección de Algoritmo
+
+```{r Unión de los datos}
+
+original <- import("Datos/2023.sav")
+
+addToDataset <- function(year) {
+  data <- import(paste("Datos/", year, ".sav", sep=""))
+  # reduced <- data[,colnames(original)]
+  original <<- bind_rows(original, data)
+}
+
+ifValueConvertToNA <- function(column, values) {
+  # print(paste("Removing ignored values from:", column))
+  original[,c(column)] <<- ifelse(original[,c(column)] %in% values, NA, original[,c(column)])
+}
+
+for (year in 2013:2022) {
+  addToDataset(year)
+}
+
+ignoredValues <- c(9, 99, 999, 9999)
+affectedColumns <- c(
+  "VIC_EDAD",
+  "TOTAL_HIJOS",
+  "NUM_HIJ_HOM",
+  "NUM_HIJ_MUJ",
+  "VIC_ALFAB",
+  "VIC_ESCOLARIDAD",
+  "VIC_EST_CIV",
+  "VIC_GRUPET",
+  "VIC_NACIONAL",
+  "VIC_TRABAJA",
+  "VIC_OCUP",
+  "VIC_DEDICA",
+  "VIC_DISC",
+  "TIPO_DISCAQ",
+  "OTRAS_VICTIMAS",
+  "VIC_OTRAS_HOM",
+  "VIC_OTRAS_MUJ",
+  "VIC_OTRAS_N_OS",
+  "VIC_OTRAS_N_AS",
+  "HEC_DIA",
+  "HEC_MES",
+  "HEC_ANO",
+  "HEC_DEPTO",
+  "HEC_DEPTOMCPIO",
+  "HEC_AREA",
+  "HEC_RECUR_DENUN",
+  "INST_DONDE_DENUNCIO",
+  "AGR_EDAD",
+  "AGR_ALFAB",
+  "AGR_ESCOLARIDAD",
+  "AGR_EST_CIV",
+  "AGR_GURPET",
+  "AGR_NACIONAL",
+  "AGR_TRABAJA",
+  "AGR_OCUP",
+  "AGR_DEDICA",
+  "AGRESORES_OTROS_TOTAL",
+  "AGR_OTROS_HOM",
+  "AGR_OTRAS_MUJ",
+  "AGR_OTROS_N_OS",
+  "AGR_OTRAS_N_AS",
+  "CONDUCENTE",
+  "LEY_APLICABLE",
+  "ARTICULOVIF1",
+  "ARTICULOVIF2",
+  "ARTICULOVIF3",
+  "ARTICULOVIF4",
+  "ARTICULOVCM1",
+  "ARTICULOVCM2",
+  "ARTICULOVCM3",
+  "ARTICULOVCM4",
+  "ARTICULOCODPEN1",
+  "ARTICULOCODPEN2",
+  "ARTICULOCODPEN3",
+  "ARTICULOCODPEN4",
+  "ARTICULOTRAS1",
+  "ARTICULOTRAS2",
+  "ARTICULOTRAS3",
+  "ARTICULOTRAS4",
+  "MEDIDAS_SEGURIDAD",
+  "ORGANISMO_REMITE",
+  "QUIEN_REPORTA",
+  "ORGANISMO_JURISDICCIONAL"
+)
+
+
+for (col in affectedColumns) {
+	ifValueConvertToNA(col, ignoredValues)
+}
+
+# Ignorar también TIPO_MEDIDA, se ignora con valor z
+ifValueConvertToNA("TIPO_MEDIDA", c("z"))
+
+# Por alguna razón se crea esta columna, todos sus valores son NAN así que la borramos.
+original$`filter_$` <- NULL
+
+summary(original)
+```
+
+Con esto podemos decir que el dataset tiene `r ncol(original)` variables y `r nrow(original)` observaciones.
+
+## Predicción Buscada
+
+Buscamos predecir la diferencia de edad entre la víctima y el abusador. La razón por la que seleccionamos esta variable es que para realizar una predicción del tipo "¿Una víctima reportará ser abusada o no?" necesitamos saber más datos sobre todas las personas que no reportaron ser abusadas, los cuáles realmente no los tenemos. Por lo tanto, nuestro modelo se basa ya sabiendo que la víctima reportó ser abusada, según las características del caso ¿Cuál es la diferencia de edad entre la víctima y el abusador?
+
+
+# Antecendetes
+
+
+La violencia intrafamiliar en Guatemala constituye un grave problema de salud pública cuya magnitud se ve reflejada en las estadísticas nacionales e internacionales. Según Morales Ruiz (2007), entre el 20% y 50% de las mujeres a nivel mundial han sido maltratadas físicamente por su pareja, situación que se agrava en el contexto guatemalteco donde factores históricos, socioeconómicos y culturales han normalizado diversas formas de violencia. Los datos recabados del Instituto Nacional de Estadística (INE) muestran una evolución preocupante en las denuncias por violencia intrafamiliar, con fluctuaciones significativas entre 2013 y 2023. Particularmente el año 2013 registró las cifras más elevadas, con aproximadamente 3,500 denuncias mensuales durante abril, mayo y julio, seguido por un descenso paulatino en los años subsiguientes. Un fenómeno destacable fue la disminución abrupta de denuncias entre febrero y abril de 2020, atribuible a las restricciones por la pandemia COVID-19, incluyendo el cierre de instituciones y toques de queda que posiblemente obstaculizaron el acceso a mecanismos de denuncia, más que reflejar una disminución real de casos. Este subregistro es particularmente preocupante considerando que muchas víctimas no denuncian por temor, inseguridad sobre su futuro, preocupación por sus hijos, dependencia económica o por el desarrollo del síndrome de incapacidad aprendida, lo que sugiere que las cifras oficiales representan solo una fracción de la realidad.
+
+El fenómeno de la violencia intrafamiliar en Guatemala debe analizarse dentro de su contexto histórico y socioeconómico particular, debido a que venimos de un conflicto armado interno de 36 años el cual normalizó la violencia como mecanismo de resolución de conflictos. Como señala Fernández Melgar (2023), la pobreza constituye un factor fundamental que promueve la violencia intrafamiliar al generar "estrés y angustia, no saber con qué cubrir las necesidades básicas o comer hoy y mañana desconocer si habrá dinero", creando un ambiente propicio para el surgimiento de conflictos en las relaciones familiares. Esta realidad se refleja en los datos del INE que indican que el 57% de la población guatemalteca vive en condiciones de pobreza y el 21,7% en pobreza extrema, concentrándose principalmente en áreas rurales (74%) y en población indígena (76%). El análisis de los datos de denuncia por área geográfica confirma esta disparidad, evidenciando una tendencia mayor de denuncias en áreas urbanas comparadas con las rurales, aunque con fluctuaciones a lo largo de los años y un incremento notable a partir de 2020. Esta distribución geográfica desigual también se manifiesta en términos étnicos, donde los datos revelan que el grupo ladino(a) presenta el mayor número de denuncias, superando las 180,000, seguido por el grupo maya con aproximadamente 100,000 denuncias, mientras que los grupos garífuna, xinka y otros registran cifras significativamente menores, todas por debajo de 10,000, lo que podría indicar tanto diferencias en la incidencia como barreras particulares para la denuncia en estos grupos poblacionales.
+
+La violencia intrafamiliar en Guatemala se manifiesta en múltiples dimensiones y modalidades que afectan de manera diferenciada a distintos grupos poblacionales. Fernández Melgar (2023) identifica cuatro formas principales: física, que incluye golpes, patadas y otras agresiones corporales; psicológica, manifestada a través de humillaciones, críticas y amenazas que desvalorizan a la víctima; económica, que implica la privación de recursos para cubrir necesidades básicas; y sexual, que incluye la imposición de actos sexuales no deseados. El análisis de la distribución de tipos de agresiones por departamento revela patrones geográficos significativos, donde Guatemala muestra una mayor concentración de denuncias en varios tipos de agresión, mientras que otros departamentos presentan incidencias menores. Los tipos de agresión más frecuentemente denunciados son los de naturaleza psicológica y física, lo que concuerda con los estudios de Walker (1978) sobre ciclos de violencia que constan de tres fases: acumulación de tensión, explosión o agresión, y reconciliación, generando patrones de abuso que se repiten y agravan con el tiempo. Este ciclo se ve reforzado por factores como el alcoholismo, desempleo, patrones de crianza violentos y machismo, creando un entorno donde la violencia se normaliza y perpetúa. Pineda González y Arana Sincal (2015) destacan cómo los niños expuestos a este ambiente desarrollan percepciones distorsionadas sobre las relaciones interpersonales, llegando a considerar la violencia como algo natural, necesario o incluso justificable en determinadas circunstancias, lo que contribuye a la transmisión intergeneracional de patrones violentos y dificulta la ruptura de estos ciclos sin intervenciones específicas.
+
+El análisis demográfico de víctimas y agresores revela patrones significativos que deben considerarse en cualquier estrategia de prevención e intervención. Según los datos del INE, tanto víctimas como agresores tienden a concentrarse en edades más jóvenes, entre 13 y 38 años, con un pico alrededor de los 25 años, disminuyendo gradualmente la densidad a medida que aumenta la edad. Un hallazgo relevante es la diferencia por sexo, donde la mediana de edad de las víctimas mujeres (aproximadamente 30 años) es ligeramente inferior a la de los hombres (alrededor de 38 años), con un rango intercuartílico más estrecho, indicando una mayor concentración de casos femeninos alrededor de esta edad media. En cuanto al estado civil, los datos revelan que la mayoría de víctimas y agresores se encuentran en relaciones de pareja estables, ya sea matrimonio o unión libre, con una cantidad significativamente mayor en el estado civil "Casado/a", lo que sugiere que las relaciones de pareja formalizadas pueden constituir un contexto de riesgo importante para la violencia intrafamiliar. La situación laboral representa otro factor diferencial, donde el 54.8% de los casos en que la víctima no trabaja involucran a un agresor que sí lo hace, mientras que solo el 11.1% implican a un agresor desempleado; cuando la víctima trabaja, estas proporciones cambian a 24.6% y 9.5% respectivamente, evidenciando que la dependencia económica podría incrementar la vulnerabilidad ante la violencia intrafamiliar.
+
+Un aspecto particularmente relevante para nuestro proyecto es la diferencia de edad entre víctimas y agresores, variable que constituye el enfoque central de nuestra investigación predictiva. Los datos analizados revelan un patrón predominante donde el agresor suele ser mayor que la víctima, contrario a lo que los histogramas de distribución de edad podrían sugerir inicialmente. Este hallazgo concuerda con estudios como el de Ley y Rato (2008), que señalan que en situaciones con marcada diferencia de edad se establecen relaciones de poder desequilibradas que facilitan la perpetuación de la violencia, dinámica reforzada por factores culturales que normalizan relaciones asimétricas. La distribución temporal de denuncias muestra fluctuaciones significativas, con tendencias generales que siguen patrones estacionales y anuales que requieren análisis más profundos para su interpretación contextual. Las variaciones geográficas también son notables, con diferencias sustanciales entre departamentos tanto en la incidencia global como en los tipos específicos de agresión reportados, sugiriendo la influencia de factores locales, culturales y socioeconómicos en la manifestación de la violencia intrafamiliar. Estas disparidades se acentúan entre áreas urbanas y rurales, posiblemente reflejando tanto diferencias reales en la incidencia como variaciones en el acceso a mecanismos de denuncia, visibilización social del problema y respuesta institucional, factores que deben considerarse al interpretar las estadísticas disponibles y diseñar estrategias diferenciadas de prevención e intervención.
+
+El marco legal guatemalteco reconoce la violencia intrafamiliar como una violación a los Derechos Humanos y ha desarrollado instrumentos específicos para su abordaje. Según el Artículo 1 de la Ley para Prevenir, Sancionar y Erradicar la Violencia Intrafamiliar (Decreto 97-96), ésta se entiende como cualquier acción u omisión que directa o indirectamente cause daño físico, sexual, psicológico o patrimonial a cualquier miembro de la familia. Los datos analizados sobre las leyes aplicadas en los casos denunciados revelan patrones interesantes sobre la respuesta institucional al problema. La Ley VIF o Decreto 96-97, orientada a sancionar, erradicar y prevenir la violencia intrafamiliar, constituye uno de los instrumentos más frecuentemente aplicados, junto con la Ley VCM o Decreto 22-2008, dirigida específicamente a garantizar la integridad, libertad e igualdad de las mujeres, y el Código Penal (Decreto 17-73) en casos que constituyen delitos tipificados. Sin embargo, como señala Fernández Melgar (2023), persiste un alto porcentaje de impunidad en estos casos, lo que perpetúa los ciclos de violencia y socava la confianza en las instituciones. La Constitución Política de Guatemala, en su artículo 47, garantiza la protección social, económica y jurídica de la familia, pero la implementación efectiva de estas protecciones sigue siendo un desafío considerable en un contexto donde factores como la pobreza, la desigualdad y patrones culturales arraigados dificultan el acceso a la justicia para muchas víctimas, especialmente en áreas rurales y comunidades indígenas.
+
+En este contexto, nuestro proyecto busca contribuir a la prevención y detección temprana de la violencia intrafamiliar, particularmente en casos donde existe una diferencia de edad significativa entre víctima y agresor. Las consecuencias de la violencia intrafamiliar son profundas y multidimensionales, afectando tanto a las víctimas directas como a su entorno familiar y social. Cabrera Pérez-Armiñan (2006) identifica diversas implicaciones psicosociales, como la invalidación de la experiencia de sufrimiento, sentimientos de impotencia, culpa y vergüenza, alteración de la necesidad básica de protección, y destrucción de la confianza social, manifestándose en síntomas como ansiedad, depresión, estrés y miedo, que con frecuencia se somatizan en dolores corporales. Basándonos en los patrones identificados en el análisis de datos del INE, consideramos fundamental desarrollar herramientas predictivas que permitan identificar configuraciones de riesgo y factores protectores, particularmente en relación con la diferencia de edad, para implementar intervenciones más efectivas y oportunas. Como señalan Ley y Rato (2008), los programas de acción psicosocial que parten de la participación activa de las propias víctimas y se adaptan a sus contextos socioculturales han demostrado mayor efectividad en la ruptura de ciclos de violencia. El modelo predictivo que proponemos busca complementar estos enfoques, proporcionando información valiosa para la identificación temprana de casos de alto riesgo y la asignación eficiente de recursos preventivos, contribuyendo así a los esfuerzos nacionales para reducir la incidencia de violencia intrafamiliar en Guatemala y mitigar sus devastadoras consecuencias individuales y sociales.
+
+
+## Referencias
+
+Ley, C., & Rato Barrio, M. (2008). Violencia intrafamiliar: Un estudio sobre la acción psicosocial basada en los contextos socioculturales y la participación activa de las mujeres indígenas en Guatemala. In IV Congreso Universidad y Cooperación para el Desarrollo. Libro y CD de Comunicaciones (Vol. 1).
+
+Fernández Melgar, A. A. (2023). La pobreza como factor promotor de violencia intrafamiliar de casos judializados en el departamento de Guatemala (Doctoral dissertation, Universidad de San Carlos de Guatemala).
+
+Pineda González, A., & Arana Sincal, L. M. (2015). Percepción de la violencia intrafamiliar en los niños de la Escuela Oficial Urbana Mixta del Cantón Norte, Patzún, Chimaltenango, Guatemala (Doctoral dissertation, Universidad de San Carlos de Guatemala).
