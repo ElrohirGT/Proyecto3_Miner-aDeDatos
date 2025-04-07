@@ -2,7 +2,13 @@
 title: "Análisis Exploratorio"
 author: "Flavio Galán, Gustavo Cruz, Pedro Guzmán"
 date: "`r Sys.Date()`"
-output: html_document
+output: 
+  html_document:
+    toc: true # table of content true
+    toc_float: true  # upto three depths of headings (specified by #, ## and ###)
+    theme: paper  # many options for theme, this one is my favorite.
+    highlight: tango  # specifies the syntax highlighting style
+    
 ---
 
 ```{r setup, include=FALSE}
@@ -20,6 +26,19 @@ library(scales)
 library(readxl)
 library(purrr)
 library(plotly)
+library(fastDummies)
+library(hopkins)
+library(fpc)
+library(factoextra)
+library(cluster) #Para calcular la silueta
+library(e1071)#para cmeans
+library(mclust) #mixtures of gaussians
+library(NbClust) #Para determinar el número de clusters óptimo
+library(GGally) #Para hacer el conjunto de graficos
+library(FeatureImpCluster) #Para revisar la importancia de las variables en los grupos.
+library(pheatmap)
+library(flexclust)
+library(ggrepel)
 ```
 
 # Análisis Exploratorio
@@ -1248,18 +1267,6 @@ Un dato importante que podemos observar del mapa de calor es que hay muchas denu
 A gran parte de las denuncias de violencia psicológica son a las que más se le aplica el decreto 97-66, podríamos 
 
 
-## Situación laboral de las víctimas y agresores en las denuncias de violencia económica
-```{r}
-
-data <- original
-data <- data %>% mutate(VIC_TRABAJA = factor(VIC_TRABAJA, levels = c(1, 2), 
-                              labels = c("Víctima trabaja", "Víctima No trabaja")),
-         AGR_TRABAJA = factor(AGR_TRABAJA, levels = c(1, 2), 
-                              labels = c("Agresor trabaja", "Agresor No trabaja")))
-
-```
-
-
 
 # Clustering 
 
@@ -1569,6 +1576,7 @@ set.seed(245)
 indices_muestra <- sample(1:nrow(data_to_cluster_encoded_numeric), 30000)
 data_muestra <- data_to_cluster_encoded_numeric[indices_muestra, ]
 
+
 hopkins(data_muestra)
 
 
@@ -1609,17 +1617,53 @@ km
 
 
 
-### Hallazgos del agrupamiento
-
-Se obtuvo que la media de agrupamiento es de 62.3%
+### Visualización de los clústers 
 
 ```{r}
-plotcluster(data_muestra,km$cluster)
+plotcluster(data_muestra, km$cluster,
+           xlab = "Componente Discriminante 1",
+           ylab = "Componente Discriminante 2",
+           main = "Visualización de Clusters",
+           col = rainbow(length(unique(km$cluster))),  # Colores para clusters
+           pch = 16,                                   # Tipo de punto
+           cex = 0.8)  
+
 
 ```
-### Variables de más importancia en los clústers
+
+### Datos anómalos y cardinalidad
+
+```{r}
+km$withinss
+```
+
+```{r}
+m<-data.frame(withinss=km$withinss, size=km$size)
+ggplot(m, aes(size,withinss))+
+geom_point()+
+geom_smooth(method="lm")+
+labs(x="cardinalidad (size)",y="magnitud (whithinss)")+
+geom_text_repel(label=rownames(m))
+```
+
+```{r}
+
+```
 
 
+### Hallazgos del agrupamiento
+
+Se obtuvo que la media de agrupamiento es de 62.3%, esto significa que más del 60% de la varianza de lo datos se explica con los clústers. Este valor es bastante aceptable.
+Otro hallazgo importante es que los clústers están desbalanceados, casi el 60% de los datos se encuentran el primer y 5to clúster mientras que el resto de los datos se encuentra distribuido en los 3 clústeres restantes. 
+También se descubrió que los clústeres 1,5 y 2 presentan una gran cantidad de datos anómalos. 
+
+Las variables que más variación presentaron en cada clúster fueron la edad de la víctima, la edad de agresor, el estado civíl de las partes involucradas, el número de hijos, el nivel de educación y alfbabetismo y el sexo de los involucrados. En el clúster 1 se descubrió que la edad de la víctima y la edad del agresor son similares y que el estado civíl predominante es el de unido/a, también se puede notar que no hay diferencia significativa en el nivel educativo y de alfabetismo entre la víctima y el agresor en este clúster. En el clúster 2, el estado cívil de los involucrados es mayoritariamente soltero/a o unido/a, sin embargo aquí la diferencia de edad entre la víctima y el agresor es mayor que en el clúster anterior, pues la edad media del agresor es de 48 años y la de la víctima es de 26 años. 
+
+- *Grupo 1*: Denuncias en donde la relación enre la víctima y el agresor es de pareja pero no son una pareja casada, dicha pareja tiene pocos hijos o no tienen. Se puede decir que en esta categoría tanto la víctima y el agresor están en condiciones similares pues tienen una edad similar y un nivel educativo similar. A pesar de eso e esta clúster es en donde se encunetra el mayor número de víctimas que no trabaja. 
+- *Grupo 2*: Denuncias en donde la relación de edad entre la víctima y el agresor es significativa, hay una mayor cantidad de hijos involucrados que en el clúster anterior. 
+- *Grupo 3*: Mayor cantidad de víctimas y agresores casados, mayor número de hijos. Los agresores tienen una edad media de 53 años y las víctimas de 49 años.  Otra característica de los datos de este clúster es que muchas de las denuncias en este clúster terminaron con la aplicación de la ley VIF. 
+- *Grupo 4*: En este clúster hay  una mayor cantidad de hombres que son la víctima y una mayor cantidad de mujeres que son victimarias, también se observa que el nivel de alfabetismo y de educación de el agresor y la víctima es bastante menor que en los demás clústers. Otro dato de interés en este clúster es que la edad media de la víctima es de 61 años y la del agresor es de 31, este puede deberse a la presencia de un dato anómalo.
+- *Grupo 5*: En este clúster la edad de las víctimas  (35 años), los agresores tienen una edad similar, gran parte de las víctimas y los agresores tienen un estado cívil de casados. En este clúster se encuentran las denuncias en donde hay más víctimas involucradas.  
 
 
 
@@ -1635,11 +1679,30 @@ Intentaremos tomar en cuenta esto durante nuestro análisis, pero en realidad po
 
 ¿Por qué se da la violencia intrafamiliar en Guatemala con víctimas que son mucho mayores/menores que sus agresores?
 
-## Objetivos
+## Objetivos Generales
 
-- Examinar variables socioculturales y demográficas que pudieran estar asociadas con la prevalencia de violencia intrafamiliar en relaciones con diferencias de edad marcadas.
-- Identificar patrones y tendencias en los tipos de violencia intrafamiliar que se manifiestan cuando hay una brecha etaria considerable entre víctima y agresor.
-- Explorar posibles dinámicas de poder relacionadas con la diferencia de edad que podrían contribuir a la violencia intrafamiliar en el contexto guatemalteco.
-## Manejo de Datos
+1. Analizar los patrones de violencia intrafamiliar en Guatemala durante el período 2013-2023, con énfasis en las relaciones donde existe una brecha etaria significativa entre víctima y agresor.
+
+2. Determinar la influencia de factores sociodemográficos (nivel educativo, situación laboral, estado civil y grupo étnico) en la prevalencia y tipos de violencia intrafamiliar reportada en el país.
+
+3. Evaluar las tendencias temporales y la distribución geográfica de los casos de violencia intrafamiliar en Guatemala, considerando las limitaciones inherentes a los datos disponibles.
+
+## Objetivos Específicos
+
+1. Identificar las diferencias en los tipos de violencia ejercida (física, psicológica, sexual, patrimonial o combinaciones) según las características sociodemográficas de víctimas y agresores, particularmente cuando existe una diferencia de edad marcada.
+
+2. Examinar la relación entre la situación laboral y económica de víctimas y agresores como posible factor determinante en las dinámicas de poder que contribuyen a la violencia intrafamiliar.
+
+3. Comparar la incidencia y naturaleza de los casos de violencia intrafamiliar entre áreas urbanas y rurales, así como entre diferentes departamentos de Guatemala, para detectar posibles patrones territoriales.
 
 ## Conclusiones
+
+1. **Perfil de víctimas y agresores:** Los datos revelan una marcada disparidad de género, con un 92% de las víctimas siendo mujeres. La mayoría de los casos se concentran en edades entre 13 y 38 años, con las víctimas mujeres presentando una mediana de edad menor (aproximadamente 30 años) que las víctimas hombres (aproximadamente 38 años). Esta disparidad sugiere dinámicas de poder basadas en género y edad como factores determinantes en la violencia intrafamiliar en Guatemala.
+
+2. **Factores socioeconómicos y educativos:** Se observa una mayor incidencia de casos en personas con nivel educativo primario, disminuyendo considerablemente en aquellos con educación universitaria. La situación laboral también juega un papel importante, con una vulnerabilidad incrementada en víctimas que no trabajan (54.8% de los casos involucraron a agresores que trabajaban y víctimas desempleadas). El estado civil es otro factor relevante, con la mayoría de las víctimas encontrándose en relaciones estables (matrimonio o unión libre), lo que indica que las relaciones de pareja a largo plazo constituyen un factor de riesgo significativo.
+
+3. **Distribución temporal y geográfica:** Las denuncias han fluctuado a lo largo del período estudiado, con una disminución paulatina desde 2014 y una caída abrupta durante los primeros meses de la pandemia en 2020, seguida de un repunte desde 2021. Las áreas urbanas presentan consistentemente un mayor número de denuncias que las rurales, aunque esto podría reflejar tanto una mayor incidencia como un mejor acceso a mecanismos de denuncia. El departamento de Guatemala muestra la mayor concentración de casos, con la violencia psicológica y la combinación de violencia física y psicológica como los tipos más frecuentes en todo el país, independientemente de las características demográficas.
+
+4. **Factores étnicos y culturales:** Se identificaron diferencias significativas en los tipos de violencia reportados según el grupo étnico, con el grupo ladino presentando la mayor variedad de tipos de agresión, seguido por el grupo maya. El grupo xinka muestra un patrón distinto, con alta prevalencia de la combinación de violencia física y psicológica. Estas diferencias sugieren la influencia de factores culturales específicos que deben ser considerados en las estrategias de prevención e intervención.
+
+5. **Limitaciones del estudio:** Es importante reconocer la presencia del "sesgo del superviviente" en los datos analizados, ya que solo reflejan los casos que fueron efectivamente denunciados. Esto implica que los resultados no necesariamente representan la totalidad del fenómeno de la violencia intrafamiliar en Guatemala, especialmente en áreas rurales o de difícil acceso donde las barreras para la denuncia son mayores.
