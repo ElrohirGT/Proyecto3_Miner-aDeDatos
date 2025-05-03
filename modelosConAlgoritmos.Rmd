@@ -1,0 +1,32 @@
+---
+title: "modelosConAlgoritmo"
+author: "Flavio Galán, Gustavo Cruz, Pedro Guzmán"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Modelos con Algoritmos
+
+Determinamos que la variable respuesta para nuestra investigación sería el ratio que describimos con anterioridad en el análisis exploratorio entre la edad de la víctima y el agresor. La cual se encuentra definida como:
+
+$$
+q=\frac{edad\ victima}{edad\ agresor}
+$$
+
+Este nuevo indicador "q" lo dividimos en 3 categorías, según qué tanta diferencia de edad se encontró entre víctimas y agresores. Las categrías son las siguientes:
+
+* Edad similar. El $q\in(0.5,1.5)$.
+* Victima mucho menor. El $q \le 0.5$.
+* Victima mucho mayor. El $q \ge 1.5$.
+
+## División de los datos
+
+## Uso del Algoritmo
+
+## Modelos
+
+## Discusión

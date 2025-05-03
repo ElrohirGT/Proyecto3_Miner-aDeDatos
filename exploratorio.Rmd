@@ -20,6 +20,8 @@ library(scales)
 library(readxl)
 library(purrr)
 library(plotly)
+library(fastDummies)
+library(clustertend)
 ```
 
 # Análisis Exploratorio
