@@ -36,7 +36,7 @@ jobs:
       - name: Setup dir
         run: |
           mkdir dist
-          cp exploratorio.html dist/index.html
+          cp modelosConAlgoritmos.html dist/index.html
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
