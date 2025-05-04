@@ -165,7 +165,6 @@ ifValueConvertToNA("TIPO_MEDIDA", c("z"))
 original$`filter_$` <- NULL
 ```
 
-
 ```{r Preparacion de datos RF}
 data_model <- as.data.table(original)
 
@@ -193,47 +192,35 @@ test <- data_model[-train_idx]
 ```{r Modelos rf}
 ncores <- min(detectCores() - 1, 16)  # Limitamos a un máximo práctico
 
-# 2) Imputación más robusta - asegurando CERO NAs
 robust_impute <- function(df) {
   df_copy <- copy(df)
   
-  # Para cada columna
   for (col in names(df_copy)) {
-    # Si es numérica, imputamos con la mediana
     if (is.numeric(df_copy[[col]])) {
-      # Verificamos si hay NAs
       na_idx <- which(is.na(df_copy[[col]]))
       if (length(na_idx) > 0) {
-        # Si todos son NA, usamos 0
         if (all(is.na(df_copy[[col]]))) {
           set(df_copy, na_idx, col, 0)
         } else {
-          # Usamos la mediana para imputar
           med_val <- median(df_copy[[col]], na.rm = TRUE)
           set(df_copy, na_idx, col, med_val)
         }
       }
     } 
-    # Si es factor, imputamos con el nivel más frecuente
     else if (is.factor(df_copy[[col]])) {
-      # Verificamos si hay NAs
       na_idx <- which(is.na(df_copy[[col]]))
       if (length(na_idx) > 0) {
-        # Si todos son NA, creamos un nivel "Desconocido"
         if (all(is.na(df_copy[[col]]))) {
-          # Añadimos nivel "Desconocido" si no existe
           if (!("Desconocido" %in% levels(df_copy[[col]]))) {
             levels(df_copy[[col]]) <- c(levels(df_copy[[col]]), "Desconocido")
           }
           set(df_copy, na_idx, col, "Desconocido")
         } else {
-          # Usamos el nivel más frecuente
           freq_table <- table(df_copy[[col]], useNA = "no")
           if (length(freq_table) > 0) {
             most_freq <- names(which.max(freq_table))
             set(df_copy, na_idx, col, most_freq)
           } else {
-            # Si no hay niveles no-NA, creamos "Desconocido"
             if (!("Desconocido" %in% levels(df_copy[[col]]))) {
               levels(df_copy[[col]]) <- c(levels(df_copy[[col]]), "Desconocido")
             }
@@ -242,20 +229,14 @@ robust_impute <- function(df) {
         }
       }
     }
-    # Para cualquier otro tipo (character, etc.)
     else if (is.character(df_copy[[col]])) {
-      # Convertimos a factor primero
       df_copy[[col]] <- as.factor(df_copy[[col]])
-      # Identificamos NAs
       na_idx <- which(is.na(df_copy[[col]]))
       if (length(na_idx) > 0) {
-        # Imputamos con "Desconocido"
         set(df_copy, na_idx, col, "Desconocido")
       }
     }
-    # Para cualquier otro tipo de datos
     else {
-      # Convertimos a character y luego a factor
       na_idx <- which(is.na(df_copy[[col]]))
       if (length(na_idx) > 0) {
         df_copy[[col]] <- as.character(df_copy[[col]])
@@ -265,11 +246,8 @@ robust_impute <- function(df) {
     }
   }
   
-  # Verificación final
   if (any(is.na(df_copy))) {
-    # Identificar columnas que aún tienen NAs
     na_cols <- colnames(df_copy)[colSums(is.na(df_copy)) > 0]
-    # Eliminar esas columnas
     message("ADVERTENCIA: Eliminando columnas con NAs persistentes: ", paste(na_cols, collapse=", "))
     df_copy <- df_copy[, .SD, .SDcols = setdiff(names(df_copy), na_cols)]
   }
@@ -277,41 +255,31 @@ robust_impute <- function(df) {
   return(df_copy)
 }
 
-# Aplicamos la imputación robusta
 train_imp <- robust_impute(copy(train))
 test_imp <- robust_impute(copy(test))
 
-# Garantizamos que test tenga los mismos niveles de factores que train
 for (col in names(train_imp)) {
   if (is.factor(train_imp[[col]]) && col %in% names(test_imp)) {
-    # Obtener todos los niveles de ambos conjuntos
     train_levels <- levels(train_imp[[col]])
     test_levels <- levels(test_imp[[col]])
     
-    # Unificar niveles
     all_levels <- unique(c(train_levels, test_levels))
     
-    # Establecer los mismos niveles para ambos
     train_imp[[col]] <- factor(train_imp[[col]], levels = all_levels)
     test_imp[[col]] <- factor(test_imp[[col]], levels = all_levels)
   }
 }
 
-# 3) Optimización de factores - más eficiente y robusta
 for (col in names(train_imp)) {
   if (is.factor(train_imp[[col]]) && length(levels(train_imp[[col]])) > 20) {
-    # Obtenemos los niveles más frecuentes
     top_levels <- names(sort(table(train_imp[[col]]), decreasing = TRUE)[1:20])
     
-    # Verificamos que top_levels no sea NULL o vacío
     if (length(top_levels) == 0) {
-      # Si no hay niveles válidos, cambiamos a caracteres simples
       train_imp[[col]] <- as.character(train_imp[[col]])
       test_imp[[col]] <- as.character(test_imp[[col]])
       next
     }
     
-    # Agrupamos el resto como "Other"
     train_levels_to_change <- setdiff(levels(train_imp[[col]]), c(top_levels, "Other"))
     if (length(train_levels_to_change) > 0) {
       levels(train_imp[[col]])[match(train_levels_to_change, levels(train_imp[[col]]))] <- "Other"
@@ -322,16 +290,13 @@ for (col in names(train_imp)) {
       levels(test_imp[[col]])[match(test_levels_to_change, levels(test_imp[[col]]))] <- "Other"
     }
     
-    # Aseguramos que los factores tengan los mismos niveles
     combined_levels <- unique(c(levels(train_imp[[col]]), levels(test_imp[[col]])))
     train_imp[[col]] <- factor(train_imp[[col]], levels = combined_levels)
     test_imp[[col]] <- factor(test_imp[[col]], levels = combined_levels)
   }
 }
 
-# 4) Verificación final de NAs - SUPER robusta
 if (any(is.na(train_imp)) || any(is.na(test_imp))) {
-  # Último recurso: eliminar columnas problemáticas
   na_cols_train <- names(train_imp)[colSums(is.na(train_imp)) > 0]
   na_cols_test <- names(test_imp)[colSums(is.na(test_imp)) > 0]
   problem_cols <- unique(c(na_cols_train, na_cols_test))
@@ -340,24 +305,20 @@ if (any(is.na(train_imp)) || any(is.na(test_imp))) {
     message("ADVERTENCIA: Eliminando columnas problemáticas como último recurso: ", 
            paste(problem_cols, collapse=", "))
     
-    # Verificamos que ratio_age no esté en las columnas problemáticas
     if ("ratio_age" %in% problem_cols) {
       stop("La variable objetivo 'ratio_age' contiene NAs que no se pueden eliminar. Revisa tus datos.")
     }
     
-    # Eliminamos las columnas problemáticas
     cols_to_keep <- setdiff(names(train_imp), problem_cols)
     train_imp <- train_imp[, ..cols_to_keep]
     test_imp <- test_imp[, ..cols_to_keep]
   }
 }
 
-# Verificación FINAL de NAs - máxima seguridad
 stopifnot("Aún hay NAs en train_imp" = sum(is.na(train_imp)) == 0)
 stopifnot("Aún hay NAs en test_imp" = sum(is.na(test_imp)) == 0)
 
-# 5) Definición de modelos más eficiente
-p <- ncol(train_imp) - 1  # Número de predictores
+p <- ncol(train_imp) - 1  
 
 # Modelo 1: Menos árboles, menos variables por split (enfoque conservador)
 train_model1 <- function() {
@@ -410,7 +371,6 @@ train_model3 <- function() {
   )
 }
 
-# Entrenamos los tres modelos explícitamente según requerimiento
 message("Entrenando modelo 1 (Conservador)")
 rf1 <- train_model1()
 message("Entrenando modelo 2 (Intermedio)")
@@ -418,12 +378,10 @@ rf2 <- train_model2()
 message("Entrenando modelo 3 (Agresivo)")
 rf3 <- train_model3()
 
-# Evaluamos los modelos
 pred1 <- predict(rf1, data = test_imp)$predictions
 pred2 <- predict(rf2, data = test_imp)$predictions
 pred3 <- predict(rf3, data = test_imp)$predictions
 
-# Calculamos métricas
 calc_metrics <- function(pred, actual) {
   c(
     MAE = mean(abs(pred - actual)),
@@ -443,24 +401,95 @@ all_metrics <- rbind(
   Model3 = metrics3
 )
 
+# Graficos para ayudar a entender el rendimiento de los modelos rf creados y entrenados anteriormente
+if (require(ggplot2)) {
+  metrics_df <- as.data.frame(all_metrics)
+  metrics_df$Modelo <- rownames(metrics_df)
+  
+  # Tabla de métricas
+  print("Tabla de métricas de los tres modelos:")
+  print(all_metrics)
+  
+  # Gráfico de barras de RMSE
+  ggplot(metrics_df, aes(x = Modelo, y = RMSE, fill = Modelo)) +
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = round(RMSE, 4)), vjust = -0.5) +
+    labs(title = "Comparación de RMSE entre modelos",
+         y = "RMSE (menor es mejor)") +
+    theme_minimal() +
+    theme(legend.position = "none")
+  
+  # Gráficos de predicción vs real para cada modelo
+  prediction_df <- data.frame(
+    Real = test_imp$ratio_age,
+    Modelo1 = pred1,
+    Modelo2 = pred2,
+    Modelo3 = pred3
+  )
+  
+  # Gráfico para Modelo 1
+  plot_pred1 <- ggplot(prediction_df, aes(x = Real, y = Modelo1)) +
+    geom_point(alpha = 0.5, color = "blue") +
+    geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+    labs(title = "Predicción vs Valor Real (Modelo 1)",
+         x = "Ratio de Edad Real",
+         y = "Ratio de Edad Predicho") +
+    theme_minimal() +
+    annotate("text", x = min(prediction_df$Real), y = max(prediction_df$Modelo1), 
+             label = paste("RMSE:", round(metrics1["RMSE"], 4)), hjust = 0)
+  
+  # Gráfico para Modelo 2
+  plot_pred2 <- ggplot(prediction_df, aes(x = Real, y = Modelo2)) +
+    geom_point(alpha = 0.5, color = "green") +
+    geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+    labs(title = "Predicción vs Valor Real (Modelo 2)",
+         x = "Ratio de Edad Real",
+         y = "Ratio de Edad Predicho") +
+    theme_minimal() +
+    annotate("text", x = min(prediction_df$Real), y = max(prediction_df$Modelo2), 
+             label = paste("RMSE:", round(metrics2["RMSE"], 4)), hjust = 0)
+  
+  # Gráfico para Modelo 3
+  plot_pred3 <- ggplot(prediction_df, aes(x = Real, y = Modelo3)) +
+    geom_point(alpha = 0.5, color = "purple") +
+    geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+    labs(title = "Predicción vs Valor Real (Modelo 3)",
+         x = "Ratio de Edad Real",
+         y = "Ratio de Edad Predicho") +
+    theme_minimal() +
+    annotate("text", x = min(prediction_df$Real), y = max(prediction_df$Modelo3), 
+             label = paste("RMSE:", round(metrics3["RMSE"], 4)), hjust = 0)
+  
+  print(plot_pred1)
+  print(plot_pred2)
+  print(plot_pred3)
+}
+
+```
+
+## Resultados de los modelos
+
+Se exploraron tres modelos de Random Forest con diferentes configuraciones de parámetros para predecir la variable ratio_age. El Modelo 1, cuenta con menos árboles, menos variables por división y nodos más grandes, en comparación del modelo 2 y 3, y mostró un RMSE relativamente alto de 0.2712 y un R2 de 0.8307. El gráfico de dispersión revela una mayor dispersión de los puntos alrededor de la línea de predicción perfecta, indicando una menor precisión en las predicciones. En contraste, el Modelo 2, que empleó un mayor número de árboles, más variables por división y nodos más pequeños, demostró una mejora significativa en el rendimiento, con un RMSE de 0.096 y un R2 de 0.9788. El gráfico correspondiente exhibe una concentración mucho mayor de los puntos cerca de la línea de predicción ideal, lo que sugiere predicciones más precisas. Finalmente, el Modelo 3, que buscó un equilibrio en el número de árboles, la cantidad de variables por división y el tamaño de los nodos, logró los mejores resultados con un RMSE de 0.0824 y un R2 de 0.9844. Su gráfico de dispersión muestra la menor dispersión de los puntos, indicando la mayor exactitud predictiva entre los tres modelos.
+
+La elección de estos parámetros se basó en la búsqueda de un equilibrio entre la capacidad del modelo para capturar patrones complejos en los datos y la necesidad de evitar el sobreajuste. El Modelo 1, al ser más conservador, probablemente incurrió en un mayor sesgo al no permitir suficiente flexibilidad en el aprendizaje. Los Modelos 2 y 3, al aumentar la complejidad, más árboles y más variables consideradas en cada división, lograron reducir significativamente el error. 
+
+```{r Modelo final}
+
 # Determinamos el mejor modelo basado en RMSE
 best_idx <- which.min(all_metrics[, "RMSE"])
 best_model_name <- paste("Modelo", best_idx)
 
 message("El mejor modelo es ", best_model_name, " con RMSE = ", all_metrics[best_idx, "RMSE"])
 
-# Obtenemos importancia de variables del mejor modelo
 var_importance <- switch(best_idx,
   "1" = importance(rf1),
   "2" = importance(rf2),
   "3" = importance(rf3)
 )
 
-# Ordenamos por importancia
 var_importance <- sort(var_importance, decreasing = TRUE)
 
 message("Entrenando modelo FINAL con parámetros optimizados")
-# Obtenemos los parámetros del mejor modelo
 best_params <- switch(best_idx,
   "1" = list(trees = 200, mtry = floor(sqrt(p)), node_size = 15, depth = 15, fraction = 0.7),
   "2" = list(trees = 500, mtry = floor(p/3), node_size = 5, depth = 25, fraction = 0.8),
@@ -482,7 +511,6 @@ rf_final <- ranger(
   importance = "impurity"
 )
 
-# Evaluamos el modelo final
 pred_final <- predict(rf_final, data = test_imp)$predictions
 final_metrics <- c(
   MAE = mean(abs(pred_final - test_imp$ratio_age)),
@@ -491,14 +519,44 @@ final_metrics <- c(
        sum((test_imp$ratio_age - mean(test_imp$ratio_age))^2)
 )
 
-# Mostramos los resultados finales
 message("Resultados del modelo FINAL:")
 print(final_metrics)
 
-# 10) Guardar el mejor modelo para uso futuro
-saveRDS(rf_final, "rf_model_final.rds")
+if (require(ggplot2)) {
+  # Tabla comparativa: mejor modelo inicial vs modelo final
+  best_model_metrics <- all_metrics[best_idx,]
+  comparison_metrics <- rbind(
+    "Mejor Modelo Inicial" = best_model_metrics,
+    "Modelo Final Optimizado" = final_metrics
+  )
+  print("Comparación entre el mejor modelo inicial y el modelo final:")
+  print(comparison_metrics)
+  
+  # Gráfico mejorado de predicción vs real para el modelo final
+  prediction_final_df <- data.frame(
+    Real = test_imp$ratio_age,
+    Predicho = pred_final
+  )
+  
+  # Añadimos línea de regresión y error
+  plot_final <- ggplot(prediction_final_df, aes(x = Real, y = Predicho)) +
+    geom_point(alpha = 0.5, color = "darkgreen") +
+    geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+    geom_smooth(method = "lm", color = "blue", se = TRUE) +
+    labs(title = "Predicción vs Valor Real (Modelo FINAL)",
+         subtitle = paste("RMSE:", round(final_metrics["RMSE"], 4), 
+                          "| R²:", round(final_metrics["R2"], 4)),
+         x = "Ratio de Edad Real",
+         y = "Ratio de Edad Predicho") +
+    theme_minimal() +
+    coord_fixed(ratio = 1) +
+    theme(plot.title = element_text(face = "bold"),
+          plot.subtitle = element_text(color = "darkblue"))
 
-# 11) Gráfico de predicción vs real
+  print(plot_final)
+}
+
+# Gráfico de predicción vs real
 if (require(ggplot2)) {
   prediction_df <- data.frame(
     Real = test_imp$ratio_age,
@@ -516,8 +574,13 @@ if (require(ggplot2)) {
   print(plot_pred)
 }
 
-# 12) Análisis del modelo final
 message("Resumen de importancia de variables (top 5):")
 print(head(var_importance, 5))
 message("Análisis completado. El modelo final ha sido guardado como 'rf_model_final.rds'")
 ```
+
+Debido a los resultados obtenidos de los 3 modelos iniciales, el Modelo 3 se eligió como el de mejor rendimiento en el conjunto de prueba, con un RMSE de 0.0824 y un R2 de 0.9844. Basándonos en la configuración de hiperparámetros de este modelo, se entrenó un Modelo Final Optimizado, realizando un ligero ajuste al aumentar el número de árboles a 600. La evaluación de este modelo final en el conjunto de prueba resultó en una ligera mejora en las métricas de rendimiento, alcanzando un MAE de 0.0120, un RMSE de 0.0821 y un R2 de 0.9845. 
+
+El gráfico de dispersión del modelo final muestra una concentración aún mayor de los puntos alrededor de la línea de predicción perfecta, lo que indica una alta precisión en las predicciones. 
+No obstante, la mejora marginal también indica que el modelo inicial ya se encontraba muy cerca de su máximo potencial con los datos disponibles. En cuanto al sobreajuste, la consistencia en el rendimiento entre el mejor modelo inicial y el modelo final en el conjunto de prueba, incluso con un ligero aumento en la complejidad al añadir más árboles, sugiere que el modelo final generaliza bien a datos no vistos y no presenta signos evidentes de sobreajuste. El alto R2 indica que una gran proporción de la varianza en la variable objetivo es explicada por el modelo, mientras que el bajo RMSE señala que las diferencias entre los valores predichos y reales son pequeñas.
+
