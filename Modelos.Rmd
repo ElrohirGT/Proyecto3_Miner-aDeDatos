@@ -169,25 +169,20 @@ original$`filter_$` <- NULL
 ```{r Preparacion de datos RF}
 data_model <- as.data.table(original)
 
-# Creamos variable objetivo y eliminamos columnas innecesarias de entrada
-data_model[, diff_age := AGR_EDAD - VIC_EDAD]
+data_model[, ratio_age := AGR_EDAD / VIC_EDAD]
 
-# Identificamos variables importantes (ajusta esto según tu conocimiento del problema)
-# Esto reducirá significativamente el tiempo de ejecución
-important_vars <- c("diff_age", "AGR_EDAD", "VIC_EDAD", "AGR_SEXO", "VIC_SEXO", 
-                   "DELITO", "MUNICIPIO", "ESTADO") 
-# Modifica esta lista según las variables que consideres más relevantes
+data_model <- data_model[!is.na(ratio_age) & is.finite(ratio_age) & ratio_age > 0]
 
-# Filtramos solo variables importantes y casos completos para la variable objetivo
-data_model <- data_model[!is.na(diff_age), ..important_vars]
+all_cols <- c("ratio_age", names(data_model)[names(data_model) != "ratio_age"])
+available_cols <- intersect(all_cols, names(data_model))
 
-# Conversión rápida de tipos
+data_model <- data_model[!is.na(ratio_age), ..available_cols]
+
 non_num_cols <- names(data_model)[!sapply(data_model, is.numeric)]
 for (col in non_num_cols) {
   set(data_model, j = col, value = as.factor(data_model[[col]]))
 }
 
-# Partición más eficiente
 set.seed(2077)
 n_train <- round(0.8 * nrow(data_model))
 train_idx <- sample(nrow(data_model), n_train)
@@ -195,139 +190,334 @@ train <- data_model[train_idx]
 test <- data_model[-train_idx]
 ```
 
+```{r Modelos rf}
+ncores <- min(detectCores() - 1, 16)  # Limitamos a un máximo práctico
 
-
-```{r Modelos con ranger paralelizado}
-# 1) Gestión óptima de núcleos 
-ncores <- min(detectCores() - 1, 8)  # Limitamos a un máximo práctico
-
-# 2) Imputación más eficiente
-quick_impute <- function(df) {
-  for (col in names(df)) {
-    if (is.numeric(df[[col]])) {
-      na_idx <- is.na(df[[col]])
-      if (any(na_idx)) {
-        set(df, which(na_idx), col, median(df[[col]], na.rm = TRUE))
+# 2) Imputación más robusta - asegurando CERO NAs
+robust_impute <- function(df) {
+  df_copy <- copy(df)
+  
+  # Para cada columna
+  for (col in names(df_copy)) {
+    # Si es numérica, imputamos con la mediana
+    if (is.numeric(df_copy[[col]])) {
+      # Verificamos si hay NAs
+      na_idx <- which(is.na(df_copy[[col]]))
+      if (length(na_idx) > 0) {
+        # Si todos son NA, usamos 0
+        if (all(is.na(df_copy[[col]]))) {
+          set(df_copy, na_idx, col, 0)
+        } else {
+          # Usamos la mediana para imputar
+          med_val <- median(df_copy[[col]], na.rm = TRUE)
+          set(df_copy, na_idx, col, med_val)
+        }
       }
-    } else if (is.factor(df[[col]])) {
-      na_idx <- is.na(df[[col]])
-      if (any(na_idx)) {
-        most_freq <- names(sort(table(df[[col]]), decreasing = TRUE)[1])
-        set(df, which(na_idx), col, most_freq)
+    } 
+    # Si es factor, imputamos con el nivel más frecuente
+    else if (is.factor(df_copy[[col]])) {
+      # Verificamos si hay NAs
+      na_idx <- which(is.na(df_copy[[col]]))
+      if (length(na_idx) > 0) {
+        # Si todos son NA, creamos un nivel "Desconocido"
+        if (all(is.na(df_copy[[col]]))) {
+          # Añadimos nivel "Desconocido" si no existe
+          if (!("Desconocido" %in% levels(df_copy[[col]]))) {
+            levels(df_copy[[col]]) <- c(levels(df_copy[[col]]), "Desconocido")
+          }
+          set(df_copy, na_idx, col, "Desconocido")
+        } else {
+          # Usamos el nivel más frecuente
+          freq_table <- table(df_copy[[col]], useNA = "no")
+          if (length(freq_table) > 0) {
+            most_freq <- names(which.max(freq_table))
+            set(df_copy, na_idx, col, most_freq)
+          } else {
+            # Si no hay niveles no-NA, creamos "Desconocido"
+            if (!("Desconocido" %in% levels(df_copy[[col]]))) {
+              levels(df_copy[[col]]) <- c(levels(df_copy[[col]]), "Desconocido")
+            }
+            set(df_copy, na_idx, col, "Desconocido")
+          }
+        }
+      }
+    }
+    # Para cualquier otro tipo (character, etc.)
+    else if (is.character(df_copy[[col]])) {
+      # Convertimos a factor primero
+      df_copy[[col]] <- as.factor(df_copy[[col]])
+      # Identificamos NAs
+      na_idx <- which(is.na(df_copy[[col]]))
+      if (length(na_idx) > 0) {
+        # Imputamos con "Desconocido"
+        set(df_copy, na_idx, col, "Desconocido")
+      }
+    }
+    # Para cualquier otro tipo de datos
+    else {
+      # Convertimos a character y luego a factor
+      na_idx <- which(is.na(df_copy[[col]]))
+      if (length(na_idx) > 0) {
+        df_copy[[col]] <- as.character(df_copy[[col]])
+        set(df_copy, na_idx, col, "Desconocido")
+        df_copy[[col]] <- as.factor(df_copy[[col]])
       }
     }
   }
-  return(df)
+  
+  # Verificación final
+  if (any(is.na(df_copy))) {
+    # Identificar columnas que aún tienen NAs
+    na_cols <- colnames(df_copy)[colSums(is.na(df_copy)) > 0]
+    # Eliminar esas columnas
+    message("ADVERTENCIA: Eliminando columnas con NAs persistentes: ", paste(na_cols, collapse=", "))
+    df_copy <- df_copy[, .SD, .SDcols = setdiff(names(df_copy), na_cols)]
+  }
+  
+  return(df_copy)
 }
 
-train_imp <- quick_impute(copy(train))
-test_imp <- quick_impute(copy(test))
+# Aplicamos la imputación robusta
+train_imp <- robust_impute(copy(train))
+test_imp <- robust_impute(copy(test))
 
-# 3) Optimización de factores - más eficiente
+# Garantizamos que test tenga los mismos niveles de factores que train
+for (col in names(train_imp)) {
+  if (is.factor(train_imp[[col]]) && col %in% names(test_imp)) {
+    # Obtener todos los niveles de ambos conjuntos
+    train_levels <- levels(train_imp[[col]])
+    test_levels <- levels(test_imp[[col]])
+    
+    # Unificar niveles
+    all_levels <- unique(c(train_levels, test_levels))
+    
+    # Establecer los mismos niveles para ambos
+    train_imp[[col]] <- factor(train_imp[[col]], levels = all_levels)
+    test_imp[[col]] <- factor(test_imp[[col]], levels = all_levels)
+  }
+}
+
+# 3) Optimización de factores - más eficiente y robusta
 for (col in names(train_imp)) {
   if (is.factor(train_imp[[col]]) && length(levels(train_imp[[col]])) > 20) {
     # Obtenemos los niveles más frecuentes
     top_levels <- names(sort(table(train_imp[[col]]), decreasing = TRUE)[1:20])
     
+    # Verificamos que top_levels no sea NULL o vacío
+    if (length(top_levels) == 0) {
+      # Si no hay niveles válidos, cambiamos a caracteres simples
+      train_imp[[col]] <- as.character(train_imp[[col]])
+      test_imp[[col]] <- as.character(test_imp[[col]])
+      next
+    }
+    
     # Agrupamos el resto como "Other"
-    train_imp[!(get(col) %in% top_levels), (col) := "Other"]
-    test_imp[!(get(col) %in% top_levels), (col) := "Other"]
+    train_levels_to_change <- setdiff(levels(train_imp[[col]]), c(top_levels, "Other"))
+    if (length(train_levels_to_change) > 0) {
+      levels(train_imp[[col]])[match(train_levels_to_change, levels(train_imp[[col]]))] <- "Other"
+    }
+    
+    test_levels_to_change <- setdiff(levels(test_imp[[col]]), c(top_levels, "Other"))
+    if (length(test_levels_to_change) > 0) {
+      levels(test_imp[[col]])[match(test_levels_to_change, levels(test_imp[[col]]))] <- "Other"
+    }
     
     # Aseguramos que los factores tengan los mismos niveles
-    combined_levels <- unique(c(levels(train_imp[[col]]), "Other"))
+    combined_levels <- unique(c(levels(train_imp[[col]]), levels(test_imp[[col]])))
     train_imp[[col]] <- factor(train_imp[[col]], levels = combined_levels)
     test_imp[[col]] <- factor(test_imp[[col]], levels = combined_levels)
   }
 }
 
-# 4) Verificación rápida de NAs
-any_na <- any(is.na(train_imp)) || any(is.na(test_imp))
-if (any_na) stop("Aún hay NAs en los datos")
+# 4) Verificación final de NAs - SUPER robusta
+if (any(is.na(train_imp)) || any(is.na(test_imp))) {
+  # Último recurso: eliminar columnas problemáticas
+  na_cols_train <- names(train_imp)[colSums(is.na(train_imp)) > 0]
+  na_cols_test <- names(test_imp)[colSums(is.na(test_imp)) > 0]
+  problem_cols <- unique(c(na_cols_train, na_cols_test))
+  
+  if (length(problem_cols) > 0) {
+    message("ADVERTENCIA: Eliminando columnas problemáticas como último recurso: ", 
+           paste(problem_cols, collapse=", "))
+    
+    # Verificamos que ratio_age no esté en las columnas problemáticas
+    if ("ratio_age" %in% problem_cols) {
+      stop("La variable objetivo 'ratio_age' contiene NAs que no se pueden eliminar. Revisa tus datos.")
+    }
+    
+    # Eliminamos las columnas problemáticas
+    cols_to_keep <- setdiff(names(train_imp), problem_cols)
+    train_imp <- train_imp[, ..cols_to_keep]
+    test_imp <- test_imp[, ..cols_to_keep]
+  }
+}
+
+# Verificación FINAL de NAs - máxima seguridad
+stopifnot("Aún hay NAs en train_imp" = sum(is.na(train_imp)) == 0)
+stopifnot("Aún hay NAs en test_imp" = sum(is.na(test_imp)) == 0)
 
 # 5) Definición de modelos más eficiente
 p <- ncol(train_imp) - 1  # Número de predictores
 
-# Función para entrenar ranger con parámetros optimizados
-train_faster_ranger <- function(nt, mt) {
+# Modelo 1: Menos árboles, menos variables por split (enfoque conservador)
+train_model1 <- function() {
+  set.seed(123)
   ranger(
-    diff_age ~ ., 
+    ratio_age ~ ., 
     data = train_imp,
-    num.trees = nt,
-    mtry = mt,
-    min.node.size = 10,       # Impide árboles demasiado profundos
-    max.depth = 20,           # Limita la profundidad
-    sample.fraction = 0.7,    # Submuestreo para acelerar
+    num.trees = 200,                 # Menos árboles para velocidad
+    mtry = floor(sqrt(p)),           # Enfoque tradicional: sqrt(p)
+    min.node.size = 15,              # Nodos más grandes (menos sobreajuste)
+    max.depth = 15,                  # Profundidad limitada
+    sample.fraction = 0.7,           # Submuestreo
     num.threads = ncores,
-    verbose = FALSE,          # Reduce salida en consola
-    importance = "impurity"   # Más rápido que "permutation"
+    verbose = FALSE,                 
+    importance = "impurity"          # Más rápido
   )
 }
 
-# Entrenamiento progresivo: primero un modelo rápido
-message("Entrenando modelo inicial (rápido)")
-rf_quick <- train_faster_ranger(100, floor(sqrt(p)))
-
-# 6) Evaluación rápida para decidir si vale la pena seguir
-pred_quick <- predict(rf_quick, data = test_imp)$predictions
-mae_quick <- mean(abs(pred_quick - test_imp$diff_age))
-message("MAE del modelo rápido: ", round(mae_quick, 2))
-
-# Ahora entrenamos modelos más complejos sólo si es necesario
-if (mae_quick > desired_threshold) {  # Define un umbral según tus necesidades
-  message("Entrenando modelo intermedio")
-  rf_med <- train_faster_ranger(500, floor(p/3))
-  
-  message("Evaluando modelo intermedio")
-  pred_med <- predict(rf_med, data = test_imp)$predictions
-  mae_med <- mean(abs(pred_med - test_imp$diff_age))
-  
-  if (mae_med > desired_threshold * 0.9) {  # Si aún necesitamos mejorar
-    message("Entrenando modelo final")
-    rf_full <- train_faster_ranger(800, floor(p * 0.4))  # Reducido de 1000 árboles
-    
-    # Evaluación final
-    pred_full <- predict(rf_full, data = test_imp)$predictions
-    results <- data.frame(
-      Model = c("Rápido (100 árboles)", "Medio (500 árboles)", "Completo (800 árboles)"),
-      MAE = c(
-        mean(abs(pred_quick - test_imp$diff_age)),
-        mean(abs(pred_med - test_imp$diff_age)),
-        mean(abs(pred_full - test_imp$diff_age))
-      ),
-      RMSE = c(
-        sqrt(mean((pred_quick - test_imp$diff_age)^2)),
-        sqrt(mean((pred_med - test_imp$diff_age)^2)),
-        sqrt(mean((pred_full - test_imp$diff_age)^2))
-      )
-    )
-  } else {
-    # Si el modelo intermedio es suficiente
-    results <- data.frame(
-      Model = c("Rápido (100 árboles)", "Medio (500 árboles)"),
-      MAE = c(
-        mean(abs(pred_quick - test_imp$diff_age)),
-        mean(abs(pred_med - test_imp$diff_age))
-      ),
-      RMSE = c(
-        sqrt(mean((pred_quick - test_imp$diff_age)^2)),
-        sqrt(mean((pred_med - test_imp$diff_age)^2))
-      )
-    )
-  }
-} else {
-  # Si el modelo rápido es suficiente
-  results <- data.frame(
-    Model = "Rápido (100 árboles)",
-    MAE = mean(abs(pred_quick - test_imp$diff_age)),
-    RMSE = sqrt(mean((pred_quick - test_imp$diff_age)^2))
+# Modelo 2: Número medio de árboles, más variables por split
+train_model2 <- function() {
+  set.seed(456)
+  ranger(
+    ratio_age ~ ., 
+    data = train_imp,
+    num.trees = 300,                 # Más árboles, mejor generalización
+    mtry = floor(p/3),               # Más variables por split
+    min.node.size = 5,               # Nodos más pequeños
+    max.depth = 25,                  # Mayor profundidad
+    sample.fraction = 0.8,           # Más muestras
+    num.threads = ncores,
+    verbose = FALSE,
+    importance = "impurity"
   )
 }
 
-# 7) Mostrar resultados
-print(results)
+# Modelo 3: Más árboles, balance de variables
+train_model3 <- function() {
+  set.seed(789)
+  ranger(
+    ratio_age ~ ., 
+    data = train_imp,
+    num.trees = 500,                 # Muchos árboles
+    mtry = floor(p * 0.4),           # Balance de variables
+    min.node.size = 10,              # Balance en tamaño de nodos
+    max.depth = 20,                  # Balance en profundidad
+    sample.fraction = 0.75,          # Balance en submuestreo
+    num.threads = ncores,
+    verbose = FALSE,
+    importance = "impurity"
+  )
+}
 
-# 8) Guardar el mejor modelo para uso futuro
-saveRDS(rf_quick, "rf_model_quick.rds")
+# Entrenamos los tres modelos explícitamente según requerimiento
+message("Entrenando modelo 1 (Conservador)")
+rf1 <- train_model1()
+message("Entrenando modelo 2 (Intermedio)")
+rf2 <- train_model2()
+message("Entrenando modelo 3 (Agresivo)")
+rf3 <- train_model3()
+
+# Evaluamos los modelos
+pred1 <- predict(rf1, data = test_imp)$predictions
+pred2 <- predict(rf2, data = test_imp)$predictions
+pred3 <- predict(rf3, data = test_imp)$predictions
+
+# Calculamos métricas
+calc_metrics <- function(pred, actual) {
+  c(
+    MAE = mean(abs(pred - actual)),
+    RMSE = sqrt(mean((pred - actual)^2)),
+    R2 = 1 - sum((actual - pred)^2) / sum((actual - mean(actual))^2)
+  )
+}
+
+metrics1 <- calc_metrics(pred1, test_imp$ratio_age)
+metrics2 <- calc_metrics(pred2, test_imp$ratio_age)
+metrics3 <- calc_metrics(pred3, test_imp$ratio_age)
+
+# Comparamos los modelos
+all_metrics <- rbind(
+  Model1 = metrics1,
+  Model2 = metrics2,
+  Model3 = metrics3
+)
+
+# Determinamos el mejor modelo basado en RMSE
+best_idx <- which.min(all_metrics[, "RMSE"])
+best_model_name <- paste("Modelo", best_idx)
+
+message("El mejor modelo es ", best_model_name, " con RMSE = ", all_metrics[best_idx, "RMSE"])
+
+# Obtenemos importancia de variables del mejor modelo
+var_importance <- switch(best_idx,
+  "1" = importance(rf1),
+  "2" = importance(rf2),
+  "3" = importance(rf3)
+)
+
+# Ordenamos por importancia
+var_importance <- sort(var_importance, decreasing = TRUE)
+
+message("Entrenando modelo FINAL con parámetros optimizados")
+# Obtenemos los parámetros del mejor modelo
+best_params <- switch(best_idx,
+  "1" = list(trees = 200, mtry = floor(sqrt(p)), node_size = 15, depth = 15, fraction = 0.7),
+  "2" = list(trees = 500, mtry = floor(p/3), node_size = 5, depth = 25, fraction = 0.8),
+  "3" = list(trees = 800, mtry = floor(p * 0.4), node_size = 10, depth = 20, fraction = 0.75)
+)
+
+# Creamos un modelo final con los parámetros optimizados
+set.seed(2077)
+rf_final <- ranger(
+  ratio_age ~ ., 
+  data = train_imp,
+  num.trees = best_params$trees + 100,    # Aumentamos ligeramente los árboles
+  mtry = best_params$mtry,                # Mantenemos la mejor configuración de variables
+  min.node.size = best_params$node_size,  # Mantenemos el mejor tamaño de nodo
+  max.depth = best_params$depth,          # Mantenemos la mejor profundidad
+  sample.fraction = best_params$fraction, # Mantenemos la mejor fracción de muestreo
+  num.threads = ncores,
+  verbose = FALSE,
+  importance = "impurity"
+)
+
+# Evaluamos el modelo final
+pred_final <- predict(rf_final, data = test_imp)$predictions
+final_metrics <- c(
+  MAE = mean(abs(pred_final - test_imp$ratio_age)),
+  RMSE = sqrt(mean((pred_final - test_imp$ratio_age)^2)),
+  R2 = 1 - sum((test_imp$ratio_age - pred_final)^2) / 
+       sum((test_imp$ratio_age - mean(test_imp$ratio_age))^2)
+)
+
+# Mostramos los resultados finales
+message("Resultados del modelo FINAL:")
+print(final_metrics)
+
+# 10) Guardar el mejor modelo para uso futuro
+saveRDS(rf_final, "rf_model_final.rds")
+
+# 11) Gráfico de predicción vs real
+if (require(ggplot2)) {
+  prediction_df <- data.frame(
+    Real = test_imp$ratio_age,
+    Predicho = pred_final
+  )
+  
+  plot_pred <- ggplot(prediction_df, aes(x = Real, y = Predicho)) +
+    geom_point(alpha = 0.5) +
+    geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+    labs(title = "Predicción vs Valor Real",
+         x = "Ratio de Edad Real",
+         y = "Ratio de Edad Predicho") +
+    theme_minimal()
+  
+  print(plot_pred)
+}
+
+# 12) Análisis del modelo final
+message("Resumen de importancia de variables (top 5):")
+print(head(var_importance, 5))
+message("Análisis completado. El modelo final ha sido guardado como 'rf_model_final.rds'")
 ```
-
-
