@@ -1,0 +1,333 @@
+---
+title: "Modelos"
+author: "Flavio Galán, Gustavo Cruz, Pedro Guzmán"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true # table of content true
+    toc_float: true  # upto three depths of headings (specified by #, ## and ###)
+    theme: paper  # many options for theme, this one is my favorite.
+    highlight: tango  # specifies the syntax highlighting style
+    
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r Cargar librerias}
+library(rio)
+library(janitor)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(viridis)
+library(scales)
+library(readxl)
+library(purrr)
+library(plotly)
+library(fastDummies)
+library(hopkins)
+library(fpc)
+library(factoextra)
+library(cluster) #Para calcular la silueta
+library(e1071)#para cmeans
+library(mclust) #mixtures of gaussians
+library(NbClust) #Para determinar el número de clusters óptimo
+library(GGally) #Para hacer el conjunto de graficos
+library(FeatureImpCluster) #Para revisar la importancia de las variables en los grupos.
+library(pheatmap)
+library(flexclust)
+library(ggrepel)
+# Dependencias necesarias para el random Forest
+# Ahora se usa ranger para randomForest y parallel para paralelizar y que sea mas rapido entrenar
+library(randomForest) # al principio se uso randomForest pero era muy lento
+library(ranger)
+library(parallel)
+library(caret)
+library(forcats)
+library(data.table)
+library(tidyverse)
+```
+
+```{r Carga de los datos}
+data_2013 <- import("Datos/2013.sav")
+data_2014 <- import("Datos/2014.sav")
+data_2015 <- import("Datos/2015.sav")
+data_2016 <- import("Datos/2016.sav")
+data_2017 <- import("Datos/2017.sav")
+data_2018 <- import("Datos/2018.sav")
+data_2019 <- import("Datos/2019.sav")
+data_2020 <- import("Datos/2020.sav")
+data_2021 <- import("Datos/2021.sav")
+data_2022 <- import("Datos/2022.sav")
+data_2023 <- import("Datos/2023.sav")
+
+compare_df_cols(data_2013, data_2014, data_2015,data_2016,data_2017,data_2018,data_2019,data_2020,data_2021,data_2022,data_2023)
+```
+
+
+```{r Unión de los datos}
+
+original <- import("Datos/2023.sav")
+
+addToDataset <- function(year) {
+  data <- import(paste("Datos/", year, ".sav", sep=""))
+  # reduced <- data[,colnames(original)]
+  original <<- bind_rows(original, data)
+}
+
+ifValueConvertToNA <- function(column, values) {
+  # print(paste("Removing ignored values from:", column))
+  original[,c(column)] <<- ifelse(original[,c(column)] %in% values, NA, original[,c(column)])
+}
+
+for (year in 2013:2022) {
+  addToDataset(year)
+}
+
+ignoredValues <- c(9, 99, 999, 9999)
+affectedColumns <- c(
+  "VIC_EDAD",
+  "TOTAL_HIJOS",
+  "NUM_HIJ_HOM",
+  "NUM_HIJ_MUJ",
+  "VIC_ALFAB",
+  "VIC_ESCOLARIDAD",
+  "VIC_EST_CIV",
+  "VIC_GRUPET",
+  "VIC_NACIONAL",
+  "VIC_TRABAJA",
+  "VIC_OCUP",
+  "VIC_DEDICA",
+  "VIC_DISC",
+  "TIPO_DISCAQ",
+  "OTRAS_VICTIMAS",
+  "VIC_OTRAS_HOM",
+  "VIC_OTRAS_MUJ",
+  "VIC_OTRAS_N_OS",
+  "VIC_OTRAS_N_AS",
+  "HEC_DIA",
+  "HEC_MES",
+  "HEC_ANO",
+  "HEC_DEPTO",
+  "HEC_DEPTOMCPIO",
+  "HEC_AREA",
+  "HEC_RECUR_DENUN",
+  "INST_DONDE_DENUNCIO",
+  "AGR_EDAD",
+  "AGR_ALFAB",
+  "AGR_ESCOLARIDAD",
+  "AGR_EST_CIV",
+  "AGR_GURPET",
+  "AGR_NACIONAL",
+  "AGR_TRABAJA",
+  "AGR_OCUP",
+  "AGR_DEDICA",
+  "AGRESORES_OTROS_TOTAL",
+  "AGR_OTROS_HOM",
+  "AGR_OTRAS_MUJ",
+  "AGR_OTROS_N_OS",
+  "AGR_OTRAS_N_AS",
+  "CONDUCENTE",
+  "LEY_APLICABLE",
+  "ARTICULOVIF1",
+  "ARTICULOVIF2",
+  "ARTICULOVIF3",
+  "ARTICULOVIF4",
+  "ARTICULOVCM1",
+  "ARTICULOVCM2",
+  "ARTICULOVCM3",
+  "ARTICULOVCM4",
+  "ARTICULOCODPEN1",
+  "ARTICULOCODPEN2",
+  "ARTICULOCODPEN3",
+  "ARTICULOCODPEN4",
+  "ARTICULOTRAS1",
+  "ARTICULOTRAS2",
+  "ARTICULOTRAS3",
+  "ARTICULOTRAS4",
+  "MEDIDAS_SEGURIDAD",
+  "ORGANISMO_REMITE",
+  "QUIEN_REPORTA",
+  "ORGANISMO_JURISDICCIONAL"
+)
+
+
+for (col in affectedColumns) {
+	ifValueConvertToNA(col, ignoredValues)
+}
+
+# Ignorar también TIPO_MEDIDA, se ignora con valor z
+ifValueConvertToNA("TIPO_MEDIDA", c("z"))
+
+# Por alguna razón se crea esta columna, todos sus valores son NAN así que la borramos.
+original$`filter_$` <- NULL
+```
+
+
+```{r Preparacion de datos RF}
+data_model <- as.data.table(original)
+
+# Creamos variable objetivo y eliminamos columnas innecesarias de entrada
+data_model[, diff_age := AGR_EDAD - VIC_EDAD]
+
+# Identificamos variables importantes (ajusta esto según tu conocimiento del problema)
+# Esto reducirá significativamente el tiempo de ejecución
+important_vars <- c("diff_age", "AGR_EDAD", "VIC_EDAD", "AGR_SEXO", "VIC_SEXO", 
+                   "DELITO", "MUNICIPIO", "ESTADO") 
+# Modifica esta lista según las variables que consideres más relevantes
+
+# Filtramos solo variables importantes y casos completos para la variable objetivo
+data_model <- data_model[!is.na(diff_age), ..important_vars]
+
+# Conversión rápida de tipos
+non_num_cols <- names(data_model)[!sapply(data_model, is.numeric)]
+for (col in non_num_cols) {
+  set(data_model, j = col, value = as.factor(data_model[[col]]))
+}
+
+# Partición más eficiente
+set.seed(2077)
+n_train <- round(0.8 * nrow(data_model))
+train_idx <- sample(nrow(data_model), n_train)
+train <- data_model[train_idx]
+test <- data_model[-train_idx]
+```
+
+
+
+```{r Modelos con ranger paralelizado}
+# 1) Gestión óptima de núcleos 
+ncores <- min(detectCores() - 1, 8)  # Limitamos a un máximo práctico
+
+# 2) Imputación más eficiente
+quick_impute <- function(df) {
+  for (col in names(df)) {
+    if (is.numeric(df[[col]])) {
+      na_idx <- is.na(df[[col]])
+      if (any(na_idx)) {
+        set(df, which(na_idx), col, median(df[[col]], na.rm = TRUE))
+      }
+    } else if (is.factor(df[[col]])) {
+      na_idx <- is.na(df[[col]])
+      if (any(na_idx)) {
+        most_freq <- names(sort(table(df[[col]]), decreasing = TRUE)[1])
+        set(df, which(na_idx), col, most_freq)
+      }
+    }
+  }
+  return(df)
+}
+
+train_imp <- quick_impute(copy(train))
+test_imp <- quick_impute(copy(test))
+
+# 3) Optimización de factores - más eficiente
+for (col in names(train_imp)) {
+  if (is.factor(train_imp[[col]]) && length(levels(train_imp[[col]])) > 20) {
+    # Obtenemos los niveles más frecuentes
+    top_levels <- names(sort(table(train_imp[[col]]), decreasing = TRUE)[1:20])
+    
+    # Agrupamos el resto como "Other"
+    train_imp[!(get(col) %in% top_levels), (col) := "Other"]
+    test_imp[!(get(col) %in% top_levels), (col) := "Other"]
+    
+    # Aseguramos que los factores tengan los mismos niveles
+    combined_levels <- unique(c(levels(train_imp[[col]]), "Other"))
+    train_imp[[col]] <- factor(train_imp[[col]], levels = combined_levels)
+    test_imp[[col]] <- factor(test_imp[[col]], levels = combined_levels)
+  }
+}
+
+# 4) Verificación rápida de NAs
+any_na <- any(is.na(train_imp)) || any(is.na(test_imp))
+if (any_na) stop("Aún hay NAs en los datos")
+
+# 5) Definición de modelos más eficiente
+p <- ncol(train_imp) - 1  # Número de predictores
+
+# Función para entrenar ranger con parámetros optimizados
+train_faster_ranger <- function(nt, mt) {
+  ranger(
+    diff_age ~ ., 
+    data = train_imp,
+    num.trees = nt,
+    mtry = mt,
+    min.node.size = 10,       # Impide árboles demasiado profundos
+    max.depth = 20,           # Limita la profundidad
+    sample.fraction = 0.7,    # Submuestreo para acelerar
+    num.threads = ncores,
+    verbose = FALSE,          # Reduce salida en consola
+    importance = "impurity"   # Más rápido que "permutation"
+  )
+}
+
+# Entrenamiento progresivo: primero un modelo rápido
+message("Entrenando modelo inicial (rápido)")
+rf_quick <- train_faster_ranger(100, floor(sqrt(p)))
+
+# 6) Evaluación rápida para decidir si vale la pena seguir
+pred_quick <- predict(rf_quick, data = test_imp)$predictions
+mae_quick <- mean(abs(pred_quick - test_imp$diff_age))
+message("MAE del modelo rápido: ", round(mae_quick, 2))
+
+# Ahora entrenamos modelos más complejos sólo si es necesario
+if (mae_quick > desired_threshold) {  # Define un umbral según tus necesidades
+  message("Entrenando modelo intermedio")
+  rf_med <- train_faster_ranger(500, floor(p/3))
+  
+  message("Evaluando modelo intermedio")
+  pred_med <- predict(rf_med, data = test_imp)$predictions
+  mae_med <- mean(abs(pred_med - test_imp$diff_age))
+  
+  if (mae_med > desired_threshold * 0.9) {  # Si aún necesitamos mejorar
+    message("Entrenando modelo final")
+    rf_full <- train_faster_ranger(800, floor(p * 0.4))  # Reducido de 1000 árboles
+    
+    # Evaluación final
+    pred_full <- predict(rf_full, data = test_imp)$predictions
+    results <- data.frame(
+      Model = c("Rápido (100 árboles)", "Medio (500 árboles)", "Completo (800 árboles)"),
+      MAE = c(
+        mean(abs(pred_quick - test_imp$diff_age)),
+        mean(abs(pred_med - test_imp$diff_age)),
+        mean(abs(pred_full - test_imp$diff_age))
+      ),
+      RMSE = c(
+        sqrt(mean((pred_quick - test_imp$diff_age)^2)),
+        sqrt(mean((pred_med - test_imp$diff_age)^2)),
+        sqrt(mean((pred_full - test_imp$diff_age)^2))
+      )
+    )
+  } else {
+    # Si el modelo intermedio es suficiente
+    results <- data.frame(
+      Model = c("Rápido (100 árboles)", "Medio (500 árboles)"),
+      MAE = c(
+        mean(abs(pred_quick - test_imp$diff_age)),
+        mean(abs(pred_med - test_imp$diff_age))
+      ),
+      RMSE = c(
+        sqrt(mean((pred_quick - test_imp$diff_age)^2)),
+        sqrt(mean((pred_med - test_imp$diff_age)^2))
+      )
+    )
+  }
+} else {
+  # Si el modelo rápido es suficiente
+  results <- data.frame(
+    Model = "Rápido (100 árboles)",
+    MAE = mean(abs(pred_quick - test_imp$diff_age)),
+    RMSE = sqrt(mean((pred_quick - test_imp$diff_age)^2))
+  )
+}
+
+# 7) Mostrar resultados
+print(results)
+
+# 8) Guardar el mejor modelo para uso futuro
+saveRDS(rf_quick, "rf_model_quick.rds")
+```
+
+
