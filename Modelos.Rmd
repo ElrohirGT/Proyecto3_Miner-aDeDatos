@@ -189,6 +189,16 @@ train <- data_model[train_idx]
 test <- data_model[-train_idx]
 ```
 
+## Modelo elegido
+
+Se decidió utilizar el modelo random forest ya qu, a pesar de su alto coste computacional, en entregas anteriores se ha determinado que este algoritmo ofrece una mayor presición a la hora de calificar o predecir la información. Para realizar los modelos se realizarán las siguietes transformaciones al conjunto de datos: 
+
+
+- Sustituir los valores NA en las variables numéricas con el valor de la mediana. 
+- Cambiar los NA en las varibles categóricas a una nueva categoría llamada "Desconocido"
+- Crear una nueva varible llamadaratio age la cuál será el cociente entre la edad del agresor y la de la víctima
+- Tunear el número de variables y el split de variables en cada uno de los nuevos modelos a genenrar.
+
 ```{r Modelos rf}
 ncores <- min(detectCores() - 1, 16)  # Limitamos a un máximo práctico
 
