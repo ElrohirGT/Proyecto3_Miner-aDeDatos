@@ -39,6 +39,7 @@ library(FeatureImpCluster) #Para revisar la importancia de las variables en los 
 library(pheatmap)
 library(flexclust)
 library(ggrepel)
+library(clustertend)
 ```
 
 
