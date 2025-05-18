@@ -50,22 +50,23 @@ library(data.table)
 library(tidyverse)
 ```
 
-```{r Carga de los datos}
-data_2013 <- import("Datos/2013.sav")
-data_2014 <- import("Datos/2014.sav")
-data_2015 <- import("Datos/2015.sav")
-data_2016 <- import("Datos/2016.sav")
-data_2017 <- import("Datos/2017.sav")
-data_2018 <- import("Datos/2018.sav")
-data_2019 <- import("Datos/2019.sav")
-data_2020 <- import("Datos/2020.sav")
-data_2021 <- import("Datos/2021.sav")
-data_2022 <- import("Datos/2022.sav")
-data_2023 <- import("Datos/2023.sav")
+# Modelos con Algoritmos
 
-compare_df_cols(data_2013, data_2014, data_2015,data_2016,data_2017,data_2018,data_2019,data_2020,data_2021,data_2022,data_2023)
-```
+Determinamos que la variable respuesta para nuestra investigación sería el ratio que describimos con anterioridad en el análisis exploratorio entre la edad de la víctima y el agresor. La cual se encuentra definida como:
 
+$$
+q=\frac{edad\ victima}{edad\ agresor}
+$$
+
+Este nuevo indicador "q" lo dividimos en 3 categorías, según qué tanta diferencia de edad se encontró entre víctimas y agresores. Las categrías son las siguientes:
+
+* Edad similar. El $q\in(0.8,1.2)$.
+* Victima mucho menor. El $q \le 0.8$.
+* Victima mucho mayor. El $q \ge 1.2$.
+
+## División de los datos
+
+Primero, tenemos que unir todos los datasets de los años anteriores, entonces
 
 ```{r Unión de los datos}
 
@@ -163,31 +164,44 @@ ifValueConvertToNA("TIPO_MEDIDA", c("z"))
 
 # Por alguna razón se crea esta columna, todos sus valores son NAN así que la borramos.
 original$`filter_$` <- NULL
+
+summary(original)
 ```
 
-```{r Preparacion de datos RF}
-data_model <- as.data.table(original)
+Ahora creamos la variable respuesta:
+```{r creacion de variable respuesta}
+edad_agr_vic <- original %>%
+  filter(!is.na(VIC_EDAD) & !is.na(AGR_EDAD)) %>%
+  mutate(
+    ratio_age = VIC_EDAD / AGR_EDAD,
+    diferenciaEdad = ifelse(ratio_age <= 0.8, "Mucho menor", ifelse(ratio_age <= 1.2, "Similar", "Mucho mayor")) 
+  )
 
-data_model[, ratio_age := AGR_EDAD / VIC_EDAD]
-
-data_model <- data_model[!is.na(ratio_age) & is.finite(ratio_age) & ratio_age > 0]
-
-all_cols <- c("ratio_age", names(data_model)[names(data_model) != "ratio_age"])
-available_cols <- intersect(all_cols, names(data_model))
-
-data_model <- data_model[!is.na(ratio_age), ..available_cols]
-
-non_num_cols <- names(data_model)[!sapply(data_model, is.numeric)]
-for (col in non_num_cols) {
-  set(data_model, j = col, value = as.factor(data_model[[col]]))
-}
-
-set.seed(2077)
-n_train <- round(0.8 * nrow(data_model))
-train_idx <- sample(nrow(data_model), n_train)
-train <- data_model[train_idx]
-test <- data_model[-train_idx]
+summary(edad_agr_vic)
 ```
+
+Con esto podemos decir que el dataset tiene `r ncol(edad_agr_vic)` variables y `r nrow(edad_agr_vic)` observaciones.
+
+Con lo cual decidimos dividir el dataset en 2 grupos, uno de validación y otro para entrenamiento, el de validación tiene el 30% de los datos mientras que el de entrenamiento el 70%. Los grupos se ven así:
+
+```{r División en entrenamiento y validación}
+set.seed(69420)
+train_index <- createDataPartition(edad_agr_vic$diferenciaEdad, p = 0.7, list = FALSE)
+train <- edad_agr_vic[train_index,]
+test <- edad_agr_vic[-train_index,]
+
+ggplotly(ggplot(train, aes(x=diferenciaEdad)) +
+  geom_bar(fill = "skyblue") +
+  labs(title="Datos de Entrenamiento", x = "Categoria", y = "Cuenta"))
+
+
+ggplotly(ggplot(test, aes(x=diferenciaEdad)) +
+  geom_bar(fill = "orange") +
+  labs(title = "Datos de Validacion", x = "Categoria", y = "Cuenta"))
+```
+
+Como se puede ver existe una alta desigualdad en los datos, puesto que la gran mayoría de los casos se dan cuando la víctima tiene una edad similar al agresor. Definitivamente esto será algo a tomar en cuenta durante el entrenamiento del modelo, uno de las posibles optimizaciones a evaluar podría ser balancear la data de entrenamiento para mejorar la precisión.
+
 
 ## Modelo elegido
 
