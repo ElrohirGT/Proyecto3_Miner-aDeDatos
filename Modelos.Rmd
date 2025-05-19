@@ -1163,7 +1163,16 @@ stopCluster(cl)
 print(tuning_results)
 ```
 
+| Profundidad| accuracy | kappa |
+|-----------|----------|-------|
+| 5 | 0.7238856 | 0.3951435 |
+| 10 | 0.7238856 | 0.3951389 |
+| 15 | 0.7238856 | 0.3951442 |
+| 20 | 0.7238856 | 0.3951411 |
+| 25 | 0.7238856 | 0.3951402 |
+| 30 | 0.7238856 | 0.3951413 |
 
+Se generaron 6 modelos más de árboles de clasificación, cambiando la profundidad del árbol, se puede observar qe tanto el kappa value como el accuracy no mejoran de manera significativa con respecto al modelo incial ya que el accuracy se mantiene en 0.72 y el kappa value en 0.39. Con esta información se puede concluir que el modelo de árbol de clasificación no es beneficioso para realizar predicciones sobre nuestra variable respuesta ya que tiene problemas en identificar las categorías establecidas. 
 
 ## Resultados de los modelos
 
