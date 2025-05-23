@@ -184,6 +184,70 @@ summary(edad_agr_vic)
 
 Con esto podemos decir que el dataset tiene `r ncol(edad_agr_vic)` variables y `r nrow(edad_agr_vic)` observaciones.
 
+Vemos que hay variables con una gran presencia de NA's, por esa razón eliminaremos aqueellas variables que tengan más del 50% de valores en NA. 
+
+```{r}
+# Función para eliminar columnas con más del 50% de NA
+eliminar_columnas_por_na <- function(df, variables_a_evaluar) {
+  
+  # Verificar que las variables a evaluar existan en el data.frame
+  variables_existentes <- intersect(variables_a_evaluar, names(df))
+  
+  if (length(variables_existentes) == 0) {
+    message("Ninguna de las variables especificadas existe en el data.frame.")
+    return(df)
+  }
+  
+  if (length(variables_existentes) < length(variables_a_evaluar)) {
+    warning("Algunas de las variables especificadas no se encontraron en el data.frame y serán omitidas de la evaluación.")
+  }
+  
+  # Calcular el umbral de NA (50% del total de filas)
+  umbral_na <- 0.5 * nrow(df)
+  
+  # Identificar las columnas a eliminar
+  columnas_a_eliminar <- c()
+  for (col_name in variables_existentes) {
+    if (sum(is.na(df[[col_name]])) > umbral_na) {
+      columnas_a_eliminar <- c(columnas_a_eliminar, col_name)
+    }
+  }
+  
+  # Eliminar las columnas identificadas
+  if (length(columnas_a_eliminar) > 0) {
+    message(paste("Se eliminarán las siguientes columnas debido a que superan el 50% de NA:", 
+                  paste(columnas_a_eliminar, collapse = ", ")))
+    df_limpio <- df[, !(names(df) %in% columnas_a_eliminar)]
+  } else {
+    message("No se encontraron columnas que superen el 50% de NA entre las variables especificadas.")
+    df_limpio <- df
+  }
+  
+  return(df_limpio)
+}
+
+
+
+qualitative_vars <- c(
+  "HEC_DEPTO", "DEPTO_MUNICIPIO", "QUIEN_REPORTA", "VIC_SEXO", 
+  "VIC_ALFAB", "VIC_ESCOLARIDAD", "VIC_EST_CIV", "VIC_GRUPET", 
+  "VIC_NACIONAL", "VIC_TRABAJA", "VIC_OCUP", "VIC_DEDICA", 
+  "VIC_DISC", "TIPO_DISCAQ", "HEC_AREA", "HEC_TIAGRE", 
+  "HEC_RECUR_DENUN", "INST_DONDE_DENUNCIO", "AGR_SEXO", 
+  "AGR_ALFAB", "AGR_ESCOLARIDAD", "AGR_EST_CIV", "AGR_GRUPET", 
+  "AGR_NACIONAL", "AGR_TRABAJA", "AGR_OCUP", "AGR_DEDICA", 
+  "INST_DENUN_HECHO", "ORGANISMO_JURISDICCIONAL", "CONDUCENTE", 
+  "MEDIDAS_SEGURIDAD", "LEY_APLICABLE", "ARTICULOVIF", 
+  "ARTICULOVCM", "ARTICULOCODPEN", "ARTICULOTRAS", 
+  "TIPO_MEDIDA", "ORGANISMO_REMITE"
+)
+
+
+result <- eliminar_columnas_por_na(edad_agr_vic, qualitative_vars)
+
+```
+
+
 Con lo cual decidimos dividir el dataset en 2 grupos, uno de validación y otro para entrenamiento, el de validación tiene el 30% de los datos mientras que el de entrenamiento el 70%. Los grupos se ven así:
 
 ```{r División en entrenamiento y validación}
@@ -203,6 +267,31 @@ ggplotly(ggplot(test, aes(x=diferenciaEdad)) +
 ```
 
 Como se puede ver existe una alta desigualdad en los datos, puesto que la gran mayoría de los casos se dan cuando la víctima tiene una edad similar al agresor. Definitivamente esto será algo a tomar en cuenta durante el entrenamiento del modelo, uno de las posibles optimizaciones a evaluar podría ser balancear la data de entrenamiento para mejorar la precisión.
+
+## Balanceo y optiminzación
+
+
+```{r}
+# Para el conjunto de entrenamiento: 21,000 observaciones (7,000 por categoría)
+train_balanceado <- train %>%
+  group_by(diferenciaEdad) %>%
+  sample_n(35000) %>%
+  ungroup()
+
+# Verificar el balance en el conjunto de entrenamiento
+table(train_balanceado$diferenciaEdad)
+
+# Para el conjunto de prueba: 9,000 observaciones (3,000 por categoría)
+test_balanceado <- test %>%
+  group_by(diferenciaEdad) %>%
+  sample_n(15000) %>%
+  ungroup()
+
+# Verificar el balance en el conjunto de prueba
+table(test_balanceado$diferenciaEdad)
+```
+
+
 
 
 ## Modelos elegidos
@@ -283,8 +372,8 @@ robust_impute <- function(df) {
   return(df_copy)
 }
 
-train_imp <- robust_impute(copy(train))
-test_imp <- robust_impute(copy(test))
+train_imp <- robust_impute(copy(train_balanceado))
+test_imp <- robust_impute(copy(test_balanceado))
 
 for (col in names(train_imp)) {
   if (is.factor(train_imp[[col]]) && col %in% names(test_imp)) {
@@ -494,6 +583,123 @@ if (require(ggplot2)) {
 }
 
 ```
+## Modelo final de random forest
+
+Se exploraron tres modelos de Random Forest con diferentes configuraciones de parámetros para predecir la variable ratio_age. El Modelo 1, cuenta con menos árboles, menos variables por división y nodos más grandes, en comparación del modelo 2 y 3, y mostró un RMSE relativamente alto de 0.2712 y un R2 de 0.8307. El gráfico de dispersión revela una mayor dispersión de los puntos alrededor de la línea de predicción perfecta, indicando una menor precisión en las predicciones. En contraste, el Modelo 2, que empleó un mayor número de árboles, más variables por división y nodos más pequeños, demostró una mejora significativa en el rendimiento, con un RMSE de 0.096 y un R2 de 0.9788. El gráfico correspondiente exhibe una concentración mucho mayor de los puntos cerca de la línea de predicción ideal, lo que sugiere predicciones más precisas. Finalmente, el Modelo 3, que buscó un equilibrio en el número de árboles, la cantidad de variables por división y el tamaño de los nodos, logró los mejores resultados con un RMSE de 0.0824 y un R2 de 0.9844. Su gráfico de dispersión muestra la menor dispersión de los puntos, indicando la mayor exactitud predictiva entre los tres modelos.
+
+La elección de estos parámetros se basó en la búsqueda de un equilibrio entre la capacidad del modelo para capturar patrones complejos en los datos y la necesidad de evitar el sobreajuste. El Modelo 1, al ser más conservador, probablemente incurrió en un mayor sesgo al no permitir suficiente flexibilidad en el aprendizaje. Los Modelos 2 y 3, al aumentar la complejidad, más árboles y más variables consideradas en cada división, lograron reducir significativamente el error. 
+
+```{r Modelo final}
+
+# Determinamos el mejor modelo basado en RMSE
+best_idx <- which.min(all_metrics[, "RMSE"])
+best_model_name <- paste("Modelo", best_idx)
+
+message("El mejor modelo es ", best_model_name, " con RMSE = ", all_metrics[best_idx, "RMSE"])
+
+var_importance <- switch(best_idx,
+  "1" = importance(rf1),
+  "2" = importance(rf2),
+  "3" = importance(rf3)
+)
+
+var_importance <- sort(var_importance, decreasing = TRUE)
+
+message("Entrenando modelo FINAL con parámetros optimizados")
+best_params <- switch(best_idx,
+  "1" = list(trees = 200, mtry = floor(sqrt(p)), node_size = 15, depth = 15, fraction = 0.7),
+  "2" = list(trees = 500, mtry = floor(p/3), node_size = 5, depth = 25, fraction = 0.8),
+  "3" = list(trees = 800, mtry = floor(p * 0.4), node_size = 10, depth = 20, fraction = 0.75)
+)
+
+# Creamos un modelo final con los parámetros optimizados
+set.seed(2077)
+rf_final <- ranger(
+  ratio_age ~ ., 
+  data = train_imp,
+  num.trees = best_params$trees + 100,    # Aumentamos ligeramente los árboles
+  mtry = best_params$mtry,                # Mantenemos la mejor configuración de variables
+  min.node.size = best_params$node_size,  # Mantenemos el mejor tamaño de nodo
+  max.depth = best_params$depth,          # Mantenemos la mejor profundidad
+  sample.fraction = best_params$fraction, # Mantenemos la mejor fracción de muestreo
+  num.threads = ncores,
+  verbose = FALSE,
+  importance = "impurity"
+)
+
+pred_final <- predict(rf_final, data = test_imp)$predictions
+final_metrics <- c(
+  MAE = mean(abs(pred_final - test_imp$ratio_age)),
+  RMSE = sqrt(mean((pred_final - test_imp$ratio_age)^2)),
+  R2 = 1 - sum((test_imp$ratio_age - pred_final)^2) / 
+       sum((test_imp$ratio_age - mean(test_imp$ratio_age))^2)
+)
+
+message("Resultados del modelo FINAL:")
+print(final_metrics)
+
+if (require(ggplot2)) {
+  # Tabla comparativa: mejor modelo inicial vs modelo final
+  best_model_metrics <- all_metrics[best_idx,]
+  comparison_metrics <- rbind(
+    "Mejor Modelo Inicial" = best_model_metrics,
+    "Modelo Final Optimizado" = final_metrics
+  )
+  print("Comparación entre el mejor modelo inicial y el modelo final:")
+  print(comparison_metrics)
+  
+  # Gráfico mejorado de predicción vs real para el modelo final
+  prediction_final_df <- data.frame(
+    Real = test_imp$ratio_age,
+    Predicho = pred_final
+  )
+  
+  # Añadimos línea de regresión y error
+  plot_final <- ggplot(prediction_final_df, aes(x = Real, y = Predicho)) +
+    geom_point(alpha = 0.5, color = "darkgreen") +
+    geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+    geom_smooth(method = "lm", color = "blue", se = TRUE) +
+    labs(title = "Predicción vs Valor Real (Modelo FINAL)",
+         subtitle = paste("RMSE:", round(final_metrics["RMSE"], 4), 
+                          "| R²:", round(final_metrics["R2"], 4)),
+         x = "Ratio de Edad Real",
+         y = "Ratio de Edad Predicho") +
+    theme_minimal() +
+    coord_fixed(ratio = 1) +
+    theme(plot.title = element_text(face = "bold"),
+          plot.subtitle = element_text(color = "darkblue"))
+
+  print(plot_final)
+}
+
+# Gráfico de predicción vs real
+if (require(ggplot2)) {
+  prediction_df <- data.frame(
+    Real = test_imp$ratio_age,
+    Predicho = pred_final
+  )
+  
+  plot_pred <- ggplot(prediction_df, aes(x = Real, y = Predicho)) +
+    geom_point(alpha = 0.5) +
+    geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+    labs(title = "Predicción vs Valor Real",
+         x = "Ratio de Edad Real",
+         y = "Ratio de Edad Predicho") +
+    theme_minimal()
+  
+  print(plot_pred)
+}
+
+message("Resumen de importancia de variables (top 5):")
+print(head(var_importance, 5))
+message("Análisis completado. El modelo final ha sido guardado como 'rf_model_final.rds'")
+```
+
+Debido a los resultados obtenidos de los 3 modelos iniciales, el Modelo 3 se eligió como el de mejor rendimiento en el conjunto de prueba, con un RMSE de 0.0824 y un R2 de 0.9844. Basándonos en la configuración de hiperparámetros de este modelo, se entrenó un Modelo Final Optimizado, realizando un ligero ajuste al aumentar el número de árboles a 600. La evaluación de este modelo final en el conjunto de prueba resultó en una ligera mejora en las métricas de rendimiento, alcanzando un MAE de 0.0120, un RMSE de 0.0821 y un R2 de 0.9845. 
+
+El gráfico de dispersión del modelo final muestra una concentración aún mayor de los puntos alrededor de la línea de predicción perfecta, lo que indica una alta precisión en las predicciones. 
+No obstante, la mejora marginal también indica que el modelo inicial ya se encontraba muy cerca de su máximo potencial con los datos disponibles. En cuanto al sobreajuste, la consistencia en el rendimiento entre el mejor modelo inicial y el modelo final en el conjunto de prueba, incluso con un ligero aumento en la complejidad al añadir más árboles, sugiere que el modelo final generaliza bien a datos no vistos y no presenta signos evidentes de sobreajuste. El alto R2 indica que una gran proporción de la varianza en la variable objetivo es explicada por el modelo, mientras que el bajo RMSE señala que las diferencias entre los valores predichos y reales son pequeñas.
+
 
 
 ## Árbol de decisión
@@ -505,10 +711,7 @@ Paraeste algoritmo realizaremos un árbol de clasificación, primero haremos un 
 ncores <- min(detectCores() - 1, 24)
 
 
-
-
 data_to_cluster <- train_imp %>% select(-ratio_age) %>% select(-VIC_EDAD) %>% select(-AGR_EDAD)
-data_to_test <- test_imp
 
 
 qualitative_vars <- c(
@@ -795,7 +998,7 @@ data_to_cluster <- data_to_cluster %>%
   )
 data_to_cluster <- data_to_cluster %>% select(-HEC_DIA)  %>% select(-HEC_DEPTOMCPIO) %>% select(-NUMERO_BOLETA) %>% select(-DIA_EMISION) %>% select(-TIPO_MEDIDA) %>% select(-ARTICULOVIF1) %>% select(-ARTICULOVIF2) %>% select(-ARTICULOVIF3) %>% select(-ARTICULOVIF4) %>% select(-ARTICULOVCM1) %>% select(-ARTICULOVCM2) %>% select(-ARTICULOVCM3) %>% select(-ARTICULOVCM4) %>% select(-ARTICULOCODPEN1) %>% select(-ARTICULOCODPEN2) %>% select(-ARTICULOCODPEN3) %>% select(-ARTICULOCODPEN4) %>% select(-ARTICULOTRAS1) %>% select(-ARTICULOTRAS2) %>% select(-ARTICULOTRAS3) %>% select(-ARTICULOTRAS4) %>% select(-DEPTO_MCPIO) %>% select(-VIC_OCUP) %>% select(-AGR_OCUP)
 
-data_to_cluster
+data_to_cluster<-data_to_cluster %>% mutate_if(is.character,as.factor)
 
 
 ```
@@ -803,7 +1006,7 @@ data_to_cluster
 
 ```{r}
 
-# Asumiendo que train_imp ya existe y tiene la misma estructura que se usó para data_to_cluster
+
 
 # Crear data_to_train a partir de train_imp
 data_to_train <- test_imp
@@ -1046,6 +1249,7 @@ data_to_train <- data_to_train %>%
 
 
 data_to_train <- data_to_train %>% select(-ratio_age) %>% select(-VIC_EDAD) %>% select(-AGR_EDAD)
+data_to_train<-data_to_train %>% mutate_if(is.character,as.factor)
 
 ```
 
@@ -1058,20 +1262,20 @@ modelo_arbol <- rpart(diferenciaEdad ~ .,  method = "class", data = data_to_clus
 par(mar = c(0.5, 0.5, 2, 0.5))  # Márgenes mínimos
 options(repr.plot.width = 15, repr.plot.height = 12)  # Aumentar tamaño
 
-# Visualización mejorada
+# Visualización del árbol
 rpart.plot(modelo_arbol,
-           type = 2,                # Tipo simplificado de visualización
-           extra = 2,               # Muestra solo la predicción de clase (mucho menos información)
-           box.palette = "RdYlGn",  # Esquema de colores
-           branch.lwd = 1.2,        # Grosor de líneas reducido
-           fallen.leaves = TRUE,    # Hojas alineadas
-           under = TRUE,            # Texto bajo los nodos
-           space = 0.5,             # Mucho más espacio entre nodos (aumentado significativamente)
-           gap = 3,                 # Mayor espacio entre niveles
-           compress = FALSE,        # No comprimir el árbol
+           type = 2,               
+           extra = 2,               
+           box.palette = "RdYlGn",  
+           branch.lwd = 1.2,        
+           fallen.leaves = TRUE,    
+           under = TRUE,            
+           space = 0.5,             
+           gap = 3,                 
+           compress = FALSE,        
            main = "Árbol de Clasificación para la diferencia de edad",
-           cex = 0.8,               # Texto más pequeño en general
-           tweak = 1.2,             # Ajuste fino de espaciado
+           cex = 0.8,               
+           tweak = 1.2,             
            digits = 2)              # Redondear valores numéricos
 ```
 
@@ -1085,209 +1289,132 @@ conf_mat <- confusionMatrix(new_pred, data_to_train$diferenciaEdad)
 
 conf_mat
 
-
 ```
-El primer modelo tuvo un accuracy de 0.72 y un kappa value de 0.39, esto indica que puede mejorarse bastante, además muestra dificultad identificando una diferencia de edad mucho menor y una diferencia deedad mucho mayor, por lo tanto, se tunearan los hiperparámetros como la profundiad para ver si hay un modelo mejor. 
+El primer modelo tuvo un accuracy de 0.59 y un kappa value de 0.38, esto indica que puede mejorarse bastante, además muestra dificultad identificando una diferencia de edad mucho menor y una diferencia deedad mucho mayor, por lo tanto, se tunearan los hiperparámetros como la profundiad para ver si hay un modelo mejor. 
+
 
 
 ```{r}
-# Cargar las bibliotecas necesarias
-library(doParallel)
-library(foreach)
-library(parallel)
 
-# Configurar el cluster paralelo con el número de núcleos que ya definiste
-cl <- makeCluster(ncores)
-registerDoParallel(cl)
-
-# Función modificada para tuning paralelo
-tune_tree_depth_parallel <- function(max_depth_values, data) {
-  # Crear un data frame para almacenar los resultados
-  results <- foreach(depth = max_depth_values, .combine = rbind) %dopar% {
-    library(rpart)
-    library(caret)
-    
-    # Crear un control de parámetros con la profundidad específica
-    control <- rpart.control(maxdepth = depth, 
-                            minsplit = 20,
-                            minbucket = 7,
-                            cp = 0.01)
-    
-    # Generar los índices para validación cruzada
-    set.seed(123 + depth)  # Semilla diferente para cada profundidad
-    cv_folds <- createFolds(data$diferenciaEdad, k = 5, list = TRUE, returnTrain = FALSE)
-    
-    # Ejecutar la validación cruzada
-    fold_results <- lapply(cv_folds, function(test_index) {
-      train_fold <- data[-test_index, ]
-      test_fold <- data[test_index, ]
-      
-      # Entrenar modelo con esta profundidad
-      model <- rpart(diferenciaEdad ~ ., method = "class", 
-                    data = train_fold, control = control)
-      
-      # Predecir en el conjunto de prueba
-      predictions <- predict(model, newdata = test_fold, type = "class")
-      
-      # Calcular métricas
-      conf <- confusionMatrix(predictions, test_fold$diferenciaEdad)
-      return(c(conf$overall["Accuracy"], conf$overall["Kappa"]))
-    })
-    
-    # Calcular promedio de métricas en los folds
-    fold_results_matrix <- do.call(rbind, fold_results)
-    mean_accuracy <- mean(fold_results_matrix[, 1])
-    mean_kappa <- mean(fold_results_matrix[, 2])
-    
-    # Retornar los resultados para esta profundidad
-    data.frame(max_depth = depth,
-               accuracy = mean_accuracy,
-               kappa = mean_kappa)
-  }
-  
-  return(results)
-}
-
-# Definir los valores de profundidad máxima a probar
-max_depth_values <- c(5, 10, 15, 20, 25, 30)
-
-# Ejecutar el tuning paralelo
-system.time(
-  tuning_results <- tune_tree_depth_parallel(max_depth_values, data_to_cluster)
+modelo_intermedio <- rpart(
+  diferenciaEdad ~ .,
+  data = data_to_cluster,
+  method = "class",
+  control = rpart.control(
+    maxdepth = 8,           # Profundidad moderada
+    minsplit = 15,          # Balance en división
+    minbucket = 7,          # Balance en hojas
+    cp = 0.005,             # Factor de complejidad moderado
+    xval = 10
+  )
 )
 
-# Detener el cluster cuando termines
-stopCluster(cl)
+intermed_pred <- predict(modelo_intermedio, newdata = data_to_train, type = "class")
 
-# Ver resultados y continuar como antes
-print(tuning_results)
+conf_mat2 <- confusionMatrix(intermed_pred, data_to_train$diferenciaEdad)
+
+conf_mat2
+
+
 ```
 
-| Profundidad| accuracy | kappa |
-|-----------|----------|-------|
-| 5 | 0.7238856 | 0.3951435 |
-| 10 | 0.7238856 | 0.3951389 |
-| 15 | 0.7238856 | 0.3951442 |
-| 20 | 0.7238856 | 0.3951411 |
-| 25 | 0.7238856 | 0.3951402 |
-| 30 | 0.7238856 | 0.3951413 |
+Vemos que el modelo mejoró encontrando las clases de mucho mayor y mucho menor, sin embargo disminuyó su rendimiento a la hora de encontrar datos con categoría "similar"
+
+```{r}
+modelo_agresivo <- rpart(
+  diferenciaEdad ~ .,
+  data = data_to_cluster,
+  method = "class",
+  control = rpart.control(
+    maxdepth = 15,          # Muy profundo
+    minsplit = 5,           # Pocas observaciones para dividir
+    minbucket = 2,          # Muy pocas observaciones por hoja
+    cp = 0.001,             # Factor de complejidad muy bajo
+    xval = 10
+  )
+)
+
+agre_pred <- predict(modelo_agresivo, newdata = data_to_train, type = "class")
+
+conf_mat3 <- confusionMatrix(agre_pred, data_to_train$diferenciaEdad)
+
+conf_mat3
+
+```
+
 
 Se generaron 6 modelos más de árboles de clasificación, cambiando la profundidad del árbol, se puede observar qe tanto el kappa value como el accuracy no mejoran de manera significativa con respecto al modelo incial ya que el accuracy se mantiene en 0.72 y el kappa value en 0.39. Con esta información se puede concluir que el modelo de árbol de clasificación no es beneficioso para realizar predicciones sobre nuestra variable respuesta ya que tiene problemas en identificar las categorías establecidas. Esta dificultad de identificación puede deberse a la distribución de las categorías en el conjunto de datos de entrenamiento. 
 
-## Resultados de los modelos
+## Regresión logística
 
-Se exploraron tres modelos de Random Forest con diferentes configuraciones de parámetros para predecir la variable ratio_age. El Modelo 1, cuenta con menos árboles, menos variables por división y nodos más grandes, en comparación del modelo 2 y 3, y mostró un RMSE relativamente alto de 0.2712 y un R2 de 0.8307. El gráfico de dispersión revela una mayor dispersión de los puntos alrededor de la línea de predicción perfecta, indicando una menor precisión en las predicciones. En contraste, el Modelo 2, que empleó un mayor número de árboles, más variables por división y nodos más pequeños, demostró una mejora significativa en el rendimiento, con un RMSE de 0.096 y un R2 de 0.9788. El gráfico correspondiente exhibe una concentración mucho mayor de los puntos cerca de la línea de predicción ideal, lo que sugiere predicciones más precisas. Finalmente, el Modelo 3, que buscó un equilibrio en el número de árboles, la cantidad de variables por división y el tamaño de los nodos, logró los mejores resultados con un RMSE de 0.0824 y un R2 de 0.9844. Su gráfico de dispersión muestra la menor dispersión de los puntos, indicando la mayor exactitud predictiva entre los tres modelos.
+```{r, echo= FALSE}
 
-La elección de estos parámetros se basó en la búsqueda de un equilibrio entre la capacidad del modelo para capturar patrones complejos en los datos y la necesidad de evitar el sobreajuste. El Modelo 1, al ser más conservador, probablemente incurrió en un mayor sesgo al no permitir suficiente flexibilidad en el aprendizaje. Los Modelos 2 y 3, al aumentar la complejidad, más árboles y más variables consideradas en cada división, lograron reducir significativamente el error. 
+modelo_conservador <- multinom(diferenciaEdad ~., 
+                              data = data_to_cluster,
+                              maxit = 100,
+                              trace = FALSE)
 
-```{r Modelo final}
+# Evaluar modelo conservador
+pred_conservador <- predict(modelo_conservador, data_to_train, type = "class")
+prob_conservador <- predict(modelo_conservador, data_to_train, type = "probs")
 
-# Determinamos el mejor modelo basado en RMSE
-best_idx <- which.min(all_metrics[, "RMSE"])
-best_model_name <- paste("Modelo", best_idx)
+cm_conservador <- confusionMatrix(pred_conservador, data_to_train$diferenciaEdad)
 
-message("El mejor modelo es ", best_model_name, " con RMSE = ", all_metrics[best_idx, "RMSE"])
+cm_conservador
 
-var_importance <- switch(best_idx,
-  "1" = importance(rf1),
-  "2" = importance(rf2),
-  "3" = importance(rf3)
+```
+```{r}
+cv_control <- trainControl(
+  method = "cv",
+  number = 5,
+  classProbs = TRUE,
+  summaryFunction = multiClassSummary
 )
 
-var_importance <- sort(var_importance, decreasing = TRUE)
 
-message("Entrenando modelo FINAL con parámetros optimizados")
-best_params <- switch(best_idx,
-  "1" = list(trees = 200, mtry = floor(sqrt(p)), node_size = 15, depth = 15, fraction = 0.7),
-  "2" = list(trees = 500, mtry = floor(p/3), node_size = 5, depth = 25, fraction = 0.8),
-  "3" = list(trees = 800, mtry = floor(p * 0.4), node_size = 10, depth = 20, fraction = 0.75)
+
+train_intermedio <- data_to_cluster[complete.cases(data_to_cluster), ]
+test_intermedio <- data_to_train[complete.cases(data_to_train), ]
+
+train_intermedio$diferenciaEdad <- as.factor(gsub(" ", "_", as.character(train_intermedio$diferenciaEdad)))
+test_intermedio$diferenciaEdad <- as.factor(gsub(" ", "_", as.character(test_intermedio$diferenciaEdad)))
+registerDoSEQ() 
+
+# Modelo con regularización elastic net (alpha = 0.5 para balance lasso/ridge)
+# Luego vuelve a correr train()
+modelo_intermedio <- train(
+  diferenciaEdad ~ .,
+  data = train_intermedio,
+  method = "glmnet",
+  trControl = cv_control,
+  tuneGrid = expand.grid(
+    alpha = 0.5,
+    lambda = seq(0.001, 0.1, length = 20)
+  ),
+  metric = "Accuracy"
 )
+pred_intermedio <- predict(modelo_intermedio, test_intermedio)
+cm_intermedio <- confusionMatrix(pred_intermedio, test_intermedio$diferenciaEdad)
 
-# Creamos un modelo final con los parámetros optimizados
-set.seed(2077)
-rf_final <- ranger(
-  ratio_age ~ ., 
-  data = train_imp,
-  num.trees = best_params$trees + 100,    # Aumentamos ligeramente los árboles
-  mtry = best_params$mtry,                # Mantenemos la mejor configuración de variables
-  min.node.size = best_params$node_size,  # Mantenemos el mejor tamaño de nodo
-  max.depth = best_params$depth,          # Mantenemos la mejor profundidad
-  sample.fraction = best_params$fraction, # Mantenemos la mejor fracción de muestreo
-  num.threads = ncores,
-  verbose = FALSE,
-  importance = "impurity"
+cm_intermedio
+```
+```{r}
+modelo_agresivo <- train(
+  diferenciaEdad ~.,
+  data = train_intermedio,
+  method = "glmnet",
+  trControl = trainControl(method = "cv", number = 3),  # CV más rápido
+  tuneGrid = expand.grid(
+    alpha = 0.01,  # Poca regularización
+    lambda = seq(0.0001, 0.01, length = 10)  # Lambda muy pequeño
+  ),
+  metric = "Accuracy",
+  family = "multinomial"
 )
+pred_agresivo <- predict(modelo_agresivo, test_intermedio)
+cm_agresivo <- confusionMatrix(pred_agresivo, test_intermedio$diferenciaEdad)
 
-pred_final <- predict(rf_final, data = test_imp)$predictions
-final_metrics <- c(
-  MAE = mean(abs(pred_final - test_imp$ratio_age)),
-  RMSE = sqrt(mean((pred_final - test_imp$ratio_age)^2)),
-  R2 = 1 - sum((test_imp$ratio_age - pred_final)^2) / 
-       sum((test_imp$ratio_age - mean(test_imp$ratio_age))^2)
-)
-
-message("Resultados del modelo FINAL:")
-print(final_metrics)
-
-if (require(ggplot2)) {
-  # Tabla comparativa: mejor modelo inicial vs modelo final
-  best_model_metrics <- all_metrics[best_idx,]
-  comparison_metrics <- rbind(
-    "Mejor Modelo Inicial" = best_model_metrics,
-    "Modelo Final Optimizado" = final_metrics
-  )
-  print("Comparación entre el mejor modelo inicial y el modelo final:")
-  print(comparison_metrics)
-  
-  # Gráfico mejorado de predicción vs real para el modelo final
-  prediction_final_df <- data.frame(
-    Real = test_imp$ratio_age,
-    Predicho = pred_final
-  )
-  
-  # Añadimos línea de regresión y error
-  plot_final <- ggplot(prediction_final_df, aes(x = Real, y = Predicho)) +
-    geom_point(alpha = 0.5, color = "darkgreen") +
-    geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
-    geom_smooth(method = "lm", color = "blue", se = TRUE) +
-    labs(title = "Predicción vs Valor Real (Modelo FINAL)",
-         subtitle = paste("RMSE:", round(final_metrics["RMSE"], 4), 
-                          "| R²:", round(final_metrics["R2"], 4)),
-         x = "Ratio de Edad Real",
-         y = "Ratio de Edad Predicho") +
-    theme_minimal() +
-    coord_fixed(ratio = 1) +
-    theme(plot.title = element_text(face = "bold"),
-          plot.subtitle = element_text(color = "darkblue"))
-
-  print(plot_final)
-}
-
-# Gráfico de predicción vs real
-if (require(ggplot2)) {
-  prediction_df <- data.frame(
-    Real = test_imp$ratio_age,
-    Predicho = pred_final
-  )
-  
-  plot_pred <- ggplot(prediction_df, aes(x = Real, y = Predicho)) +
-    geom_point(alpha = 0.5) +
-    geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
-    labs(title = "Predicción vs Valor Real",
-         x = "Ratio de Edad Real",
-         y = "Ratio de Edad Predicho") +
-    theme_minimal()
-  
-  print(plot_pred)
-}
-
-message("Resumen de importancia de variables (top 5):")
-print(head(var_importance, 5))
-message("Análisis completado. El modelo final ha sido guardado como 'rf_model_final.rds'")
+cm_agresivo
 ```
 
-Debido a los resultados obtenidos de los 3 modelos iniciales, el Modelo 3 se eligió como el de mejor rendimiento en el conjunto de prueba, con un RMSE de 0.0824 y un R2 de 0.9844. Basándonos en la configuración de hiperparámetros de este modelo, se entrenó un Modelo Final Optimizado, realizando un ligero ajuste al aumentar el número de árboles a 600. La evaluación de este modelo final en el conjunto de prueba resultó en una ligera mejora en las métricas de rendimiento, alcanzando un MAE de 0.0120, un RMSE de 0.0821 y un R2 de 0.9845. 
-
-El gráfico de dispersión del modelo final muestra una concentración aún mayor de los puntos alrededor de la línea de predicción perfecta, lo que indica una alta precisión en las predicciones. 
-No obstante, la mejora marginal también indica que el modelo inicial ya se encontraba muy cerca de su máximo potencial con los datos disponibles. En cuanto al sobreajuste, la consistencia en el rendimiento entre el mejor modelo inicial y el modelo final en el conjunto de prueba, incluso con un ligero aumento en la complejidad al añadir más árboles, sugiere que el modelo final generaliza bien a datos no vistos y no presenta signos evidentes de sobreajuste. El alto R2 indica que una gran proporción de la varianza en la variable objetivo es explicada por el modelo, mientras que el bajo RMSE señala que las diferencias entre los valores predichos y reales son pequeñas.
 
